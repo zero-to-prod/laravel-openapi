@@ -3,6 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use ZeroToProd\JsonApi\Http\Controllers\VersionController;
+use ZeroToProd\JsonApi\Http\Controllers\SchemaController;
 
-Route::get('/version', VersionController::class)->name('jsonapi.version');
+Route::get('/schema', SchemaController::class)->name('jsonapi.schema');

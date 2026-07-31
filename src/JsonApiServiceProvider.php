@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ZeroToProd\JsonApi;
 
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use ZeroToProd\JsonApi\Console\ValidateSchemaCommand;
 
 class JsonApiServiceProvider extends ServiceProvider
 {
@@ -15,6 +17,11 @@ class JsonApiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/jsonapi.php', 'jsonapi');
+
+        $this->app->singleton(SchemaGenerator::class, static fn (Application $app): SchemaGenerator => new SchemaGenerator(
+            $app['router'],
+            $app['config']->get('jsonapi.openapi', []),
+        ));
     }
 
     /**
@@ -25,6 +32,8 @@ class JsonApiServiceProvider extends ServiceProvider
         $this->registerRoutes();
 
         if ($this->app->runningInConsole()) {
+            $this->commands([ValidateSchemaCommand::class]);
+
             $this->publishes([
                 __DIR__.'/../config/jsonapi.php' => config_path('jsonapi.php'),
             ], 'jsonapi-config');
