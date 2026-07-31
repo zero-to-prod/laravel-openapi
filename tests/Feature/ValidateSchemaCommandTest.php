@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use ZeroToProd\JsonApi\Tests\Fixtures\DanglingReferenceController;
-use ZeroToProd\JsonApi\Tests\Fixtures\MissingResponsesController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\DanglingReferenceController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\MissingResponsesController;
 
 /**
  * `expectsOutputToContain` matches individual writes, and the errors are
@@ -13,7 +13,7 @@ use ZeroToProd\JsonApi\Tests\Fixtures\MissingResponsesController;
  */
 function validateSchema(): array
 {
-    return [Artisan::call('jsonapi:validate'), Artisan::output()];
+    return [Artisan::call('openapi:validate'), Artisan::output()];
 }
 
 it('passes for the document the package generates', function (): void {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\JsonApi\Console;
+namespace ZeroToProd\LaravelOpenapi\Console;
 
 use cebe\openapi\exceptions\UnresolvableReferenceException;
 use cebe\openapi\Reader;
@@ -11,11 +11,11 @@ use cebe\openapi\spec\OpenApi as Specification;
 use Illuminate\Console\Command;
 use Throwable;
 use Zerotoprod\DataModelOpenapi30\OpenApi;
-use ZeroToProd\JsonApi\SchemaGenerator;
+use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 class ValidateSchemaCommand extends Command
 {
-    protected $signature = 'jsonapi:validate';
+    protected $signature = 'openapi:validate';
 
     protected $description = 'Validate the generated OpenAPI document against the OpenAPI specification';
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\JsonApi\Http\Controllers;
+namespace ZeroToProd\LaravelOpenapi\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Zerotoprod\DataModelOpenapi30\MediaType;
@@ -11,8 +11,8 @@ use Zerotoprod\DataModelOpenapi30\Operation;
 use Zerotoprod\DataModelOpenapi30\PathItem;
 use Zerotoprod\DataModelOpenapi30\Response;
 use Zerotoprod\DataModelOpenapi30\Schema;
-use ZeroToProd\JsonApi\JsonApi;
-use ZeroToProd\JsonApi\SchemaGenerator;
+use ZeroToProd\LaravelOpenapi\ApiSchema;
+use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 class SchemaController
 {
@@ -20,13 +20,13 @@ class SchemaController
     {
     }
 
-    #[JsonApi([
+    #[ApiSchema([
         OpenApi::paths => [
             '/schema' => [
                 PathItem::get => [
                     Operation::operationId => 'getSchema',
                     Operation::summary => 'Get the OpenAPI document for this API',
-                    Operation::description => 'Returns an OpenAPI 3.0 document generated from the #[JsonApi] attributes declared on the registered routes.',
+                    Operation::description => 'Returns an OpenAPI 3.0 document generated from the #[ApiSchema] attributes declared on the registered routes.',
                     Operation::responses => [
                         '200' => [
                             Response::description => 'The generated OpenAPI document.',
@@ -51,6 +51,6 @@ class SchemaController
     ])]
     public function __invoke(): JsonResponse
     {
-        return new JsonResponse($this->generator->generate()->toArray());
+        return new JsonResponse($this->generator->document());
     }
 }

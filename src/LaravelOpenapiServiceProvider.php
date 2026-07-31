@@ -2,25 +2,26 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\JsonApi;
+namespace ZeroToProd\LaravelOpenapi;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use ZeroToProd\JsonApi\Console\ValidateSchemaCommand;
+use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
+use ZeroToProd\LaravelOpenapi\Console\ValidateSchemaCommand;
 
-class JsonApiServiceProvider extends ServiceProvider
+class LaravelOpenapiServiceProvider extends ServiceProvider
 {
     /**
      * Register any package services.
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/jsonapi.php', 'jsonapi');
+        $this->mergeConfigFrom(__DIR__.'/../config/openapi.php', 'openapi');
 
         $this->app->singleton(SchemaGenerator::class, static fn (Application $app): SchemaGenerator => new SchemaGenerator(
             $app['router'],
-            $app['config']->get('jsonapi.openapi', []),
+            $app['config']->get('openapi.openapi', []),
         ));
     }
 
@@ -29,14 +30,19 @@ class JsonApiServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->registerRoutes();
+        if ($this->app['config']->get('openapi.route.enabled', true)) {
+            $this->registerRoutes();
+        }
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ValidateSchemaCommand::class]);
+            $this->commands([
+                CoverageCommand::class,
+                ValidateSchemaCommand::class,
+            ]);
 
             $this->publishes([
-                __DIR__.'/../config/jsonapi.php' => config_path('jsonapi.php'),
-            ], 'jsonapi-config');
+                __DIR__.'/../config/openapi.php' => config_path('openapi.php'),
+            ], 'openapi-config');
         }
     }
 
@@ -46,8 +52,8 @@ class JsonApiServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Route::group([
-            'prefix' => config('jsonapi.route.prefix'),
-            'middleware' => config('jsonapi.route.middleware'),
+            'prefix' => config('openapi.route.prefix'),
+            'middleware' => config('openapi.route.middleware'),
         ], function (): void {
             $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
         });

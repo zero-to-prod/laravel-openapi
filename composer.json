@@ -1,5 +1,5 @@
 {
-    "name": "zero-to-prod/laravel-jsonapi",
+    "name": "zero-to-prod/laravel-openapi",
     "description": "JSON:API support for Laravel.",
     "type": "library",
     "license": "MIT",
@@ -20,22 +20,25 @@
         "symfony/psr-http-message-bridge": "^8.1"
     },
     "suggest": {
-        "devizzent/cebe-php-openapi": "Required by `php artisan jsonapi:validate` to validate the generated document."
+        "devizzent/cebe-php-openapi": "Required by `php artisan openapi:validate` to validate the generated document.",
+        "league/openapi-psr7-validator": "Required by the ValidatesSchema test trait to match responses against the document.",
+        "nyholm/psr7": "PSR-7 implementation used by the ValidatesSchema test trait.",
+        "symfony/psr-http-message-bridge": "Converts Laravel requests and responses to PSR-7 for the ValidatesSchema test trait."
     },
     "autoload": {
         "psr-4": {
-            "ZeroToProd\\JsonApi\\": "src/"
+            "ZeroToProd\\LaravelOpenapi\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "ZeroToProd\\JsonApi\\Tests\\": "tests/"
+            "ZeroToProd\\LaravelOpenapi\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "ZeroToProd\\JsonApi\\JsonApiServiceProvider"
+                "ZeroToProd\\LaravelOpenapi\\LaravelOpenapiServiceProvider"
             ]
         }
     },

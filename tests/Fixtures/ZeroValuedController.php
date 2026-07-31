@@ -8,26 +8,30 @@ use Zerotoprod\DataModelOpenapi30\MediaType;
 use Zerotoprod\DataModelOpenapi30\OpenApi;
 use Zerotoprod\DataModelOpenapi30\Operation;
 use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Reference;
 use Zerotoprod\DataModelOpenapi30\Response;
+use Zerotoprod\DataModelOpenapi30\Schema;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
- * References a component that no controller contributes.
+ * Declares meaningful falsy values. Hydrating through the data model dropped
+ * these, because its toArray() skips any value that is loosely false.
  */
-class DanglingReferenceController
+class ZeroValuedController
 {
     #[ApiSchema([
         OpenApi::paths => [
-            '/dangling-reference' => [
+            '/zero-valued' => [
                 PathItem::get => [
                     Operation::responses => [
                         '200' => [
-                            Response::description => 'Refers to a missing schema.',
+                            Response::description => 'Bounded by zero.',
                             Response::content => [
                                 'application/vnd.api+json' => [
                                     MediaType::schema => [
-                                        Reference::ref => '#/components/schemas/DoesNotExist',
+                                        Schema::type => 'integer',
+                                        Schema::minimum => 0,
+                                        Schema::example => 0,
+                                        Schema::default => 0,
                                     ],
                                 ],
                             ],

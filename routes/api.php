@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Route;
-use ZeroToProd\JsonApi\Http\Controllers\SchemaController;
+use ZeroToProd\LaravelOpenapi\ApiSchema;
 
-Route::get('/schema', SchemaController::class)->name('jsonapi.schema');
+ApiSchema::routes();

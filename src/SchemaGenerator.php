@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\JsonApi;
+namespace ZeroToProd\LaravelOpenapi;
 
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
@@ -10,7 +10,7 @@ use ReflectionMethod;
 use Zerotoprod\DataModelOpenapi30\OpenApi;
 
 /**
- * Builds an OpenAPI document from the #[JsonApi] attributes declared on the
+ * Builds an OpenAPI document from the #[ApiSchema] attributes declared on the
  * controller methods behind the application's registered routes.
  */
 class SchemaGenerator
@@ -25,16 +25,9 @@ class SchemaGenerator
     }
 
     /**
-     * The hydrated document. Throws if the merged fragments are not a valid
-     * OpenAPI document.
-     */
-    public function generate(): OpenApi
-    {
-        return OpenApi::from($this->document());
-    }
-
-    /**
-     * The merged document, before hydration.
+     * The merged document. Validity is asserted by `openapi:validate` rather
+     * than on the way out, so an incomplete fragment does not break the
+     * endpoint that would tell you about it.
      *
      * @return array<string, mixed>
      */
@@ -63,7 +56,7 @@ class SchemaGenerator
     }
 
     /**
-     * The #[JsonApi] fragment declared on the method handling the given route.
+     * The #[ApiSchema] fragment declared on the method handling the given route.
      *
      * @return array<string, mixed>
      */
@@ -84,7 +77,7 @@ class SchemaGenerator
             return [];
         }
 
-        $attribute = (new ReflectionMethod($controller, $method))->getAttributes(JsonApi::class)[0] ?? null;
+        $attribute = (new ReflectionMethod($controller, $method))->getAttributes(ApiSchema::class)[0] ?? null;
 
         return $attribute?->newInstance()->schema ?? [];
     }

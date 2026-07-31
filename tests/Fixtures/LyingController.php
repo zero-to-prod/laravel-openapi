@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\JsonApi\Tests\Fixtures;
+namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
 use Illuminate\Http\JsonResponse;
 use Zerotoprod\DataModelOpenapi30\MediaType;
@@ -11,7 +11,7 @@ use Zerotoprod\DataModelOpenapi30\Operation;
 use Zerotoprod\DataModelOpenapi30\PathItem;
 use Zerotoprod\DataModelOpenapi30\Response;
 use Zerotoprod\DataModelOpenapi30\Schema;
-use ZeroToProd\JsonApi\JsonApi;
+use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
  * Declares a string `version` but returns an integer, and omits the declared
@@ -19,7 +19,7 @@ use ZeroToProd\JsonApi\JsonApi;
  */
 class LyingController
 {
-    #[JsonApi([
+    #[ApiSchema([
         OpenApi::paths => [
             '/lying' => [
                 PathItem::get => [
