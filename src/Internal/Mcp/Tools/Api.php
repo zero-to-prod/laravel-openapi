@@ -47,9 +47,16 @@ class Api extends Tool
      */
     public static function render(string $directory, string $namespace): string
     {
-        $stubs = array_map(self::stub(...), self::classes($directory, $namespace));
+        $classes = self::classes($directory, $namespace);
 
-        return implode("\n\n", [self::PREAMBLE, ...$stubs])."\n";
+        $stubs = array_map(self::stub(...), $classes);
+
+        $total = array_sum(array_map(
+            static fn (ReflectionClass $class): int => count(self::methods($class)),
+            $classes,
+        ));
+
+        return implode("\n\n", [self::PREAMBLE, ...$stubs, 'Total public methods: '.$total])."\n";
     }
 
     /**

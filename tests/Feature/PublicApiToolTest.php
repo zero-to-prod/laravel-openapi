@@ -77,6 +77,10 @@ it('omits members that are not public api', function (): void {
         ->not->toContain('debug');
 });
 
+it('totals the public methods at the bottom of the output', function (): void {
+    expect(renderFixtures())->toEndWith("\n\nTotal public methods: 10\n");
+});
+
 it('omits internal classes and files that declare no class', function (): void {
     expect(renderFixtures())
         ->not->toContain('Hidden')
