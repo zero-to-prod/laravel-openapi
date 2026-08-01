@@ -1,11 +1,8 @@
 #!/usr/bin/env sh
-#
-# Composer require checker: fails when src/ uses a symbol that is not provided
-# by a package listed in the "require" section of composer.json.
-#
+
 set -e
 
-CRC_VERSION=4.24.0
+CRC_VERSION=4.20.0
 TOOL_DIR=build/require-check
 PHAR="$TOOL_DIR/composer-require-checker-$CRC_VERSION.phar"
 TREE="$TOOL_DIR/tree"
@@ -18,14 +15,6 @@ if [ ! -f "$PHAR" ]; then
         "https://github.com/maglnet/ComposerRequireChecker/releases/download/$CRC_VERSION/composer-require-checker.phar"
 fi
 
-# CRC resolves symbols from the packages named in "require", locating them in
-# vendor/. A normal install pulls orchestra/testbench -> laravel/framework,
-# which `replace`s every illuminate/* package this library requires, so those
-# packages are never physically present and CRC reports all of their symbols as
-# unknown. `composer update --no-dev` does not help: it still resolves the dev
-# graph, so laravel/framework still wins and the illuminate/* splits are never
-# selected. Building a tree with require-dev removed is what puts the real
-# illuminate/* packages on disk.
 rm -rf "$TREE"
 mkdir -p "$TREE"
 cp composer.json composer-require-checker.json "$TREE/"
