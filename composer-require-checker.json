@@ -1,0 +1,30 @@
+{
+    "symbol-whitelist": [
+        "app",
+        "config",
+        "config_path",
+        "storage_path",
+
+        "cebe\\openapi\\Reader",
+        "cebe\\openapi\\ReferenceContext",
+        "cebe\\openapi\\spec\\OpenApi",
+        "cebe\\openapi\\exceptions\\UnresolvableReferenceException",
+        "League\\OpenAPIValidation\\PSR7\\ValidatorBuilder",
+        "League\\OpenAPIValidation\\PSR7\\OperationAddress",
+        "League\\OpenAPIValidation\\PSR7\\Exception\\ValidationFailed",
+        "Symfony\\Bridge\\PsrHttpMessage\\Factory\\PsrHttpFactory",
+
+        "Laravel\\Mcp\\Facades\\Mcp",
+        "Laravel\\Mcp\\Response",
+        "Laravel\\Mcp\\Server",
+        "Laravel\\Mcp\\Server\\McpServiceProvider",
+        "Laravel\\Mcp\\Server\\Registrar",
+        "Laravel\\Mcp\\Server\\Tool",
+
+        "Illuminate\\Testing\\TestResponse",
+        "PHPUnit\\Framework\\Assert",
+
+        "Symfony\\Component\\HttpFoundation\\Request",
+        "Symfony\\Component\\HttpFoundation\\Response"
+    ]
+}

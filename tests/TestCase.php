@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Tests;
 
 use Illuminate\Contracts\Config\Repository;
+use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
 use ZeroToProd\LaravelOpenapi\LaravelOpenapiServiceProvider;
@@ -13,21 +14,16 @@ abstract class TestCase extends Orchestra
 {
     use ValidatesSchema;
 
-    /**
-     * Config applied while the application is being created.
-     *
-     * @var array<string, mixed>
-     */
+    /** @var array<string, mixed> */
     protected array $environmentConfig = [];
 
-    /**
-     * Get the package providers to register in the test application.
-     *
-     * @return array<int, class-string>
-     */
+    /** @return array<int, class-string> */
     protected function getPackageProviders($app): array
     {
         return [
+            // Real applications discover this from laravel/mcp's composer
+            // manifest. Testbench does not, so it is listed explicitly.
+            McpServiceProvider::class,
             LaravelOpenapiServiceProvider::class,
         ];
     }
@@ -41,13 +37,7 @@ abstract class TestCase extends Orchestra
         }
     }
 
-    /**
-     * Rebuild the application so the provider boots against the given config.
-     * Route registration happens during boot, so setting config afterwards is
-     * too late to affect it.
-     *
-     * @param  array<string, mixed>  $config
-     */
+    /** @param  array<string, mixed>  $config */
     protected function withConfig(array $config): static
     {
         $this->environmentConfig = $config;

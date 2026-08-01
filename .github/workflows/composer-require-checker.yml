@@ -1,0 +1,45 @@
+name: composer_require_checker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composer-require-checker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  composer-require-checker:
+    name: Composer Require Checker / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Report every failing version, not just the first one.
+      fail-fast: false
+      matrix:
+        # Only the versions this package supports. `php: ^8.3` means an install
+        # on 8.1 or 8.2 cannot resolve at all.
+        php: ['8.3', '8.4', '8.5']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml, curl
+          coverage: none
+          tools: composer:v2
+
+      # No `composer install` step: the checker has to run against a
+      # production-only dependency tree, which bin/require-check.sh builds
+      # itself. See the comment in that script for why.
+      - name: Run ComposerRequireChecker
+        run: bin/require-check.sh

@@ -13,12 +13,10 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
+/** @internal */
 trait ValidatesSchema
 {
     /**
-     * Assert that a response, and the request that produced it, match what the
-     * #[ApiSchema] attributes declare. Records the operation as exercised.
-     *
      * @template TResponse of SymfonyResponse
      *
      * @param  TestResponse<TResponse>  $response
@@ -45,21 +43,11 @@ trait ValidatesSchema
             Assert::fail($this->describeValidationFailure($e));
         }
 
-        // Validation passes by not throwing, so register the assertion
-        // explicitly rather than letting PHPUnit call the test risky.
         $this->addToAssertionCount(1);
 
         return $response;
     }
 
-    /**
-     * Assert that every response the document declares was exercised by a call
-     * to assertMatchesSchema(). Declared-but-unexercised operations are
-     * unverified claims.
-     *
-     * Coverage accumulates in static state, so this belongs in a test that runs
-     * after the rest of the suite, in a single process.
-     */
     protected function assertSchemaFullyExercised(): void
     {
         $missing = SchemaCoverage::missing(app(SchemaGenerator::class)->document());
@@ -71,10 +59,6 @@ trait ValidatesSchema
         ));
     }
 
-    /**
-     * The useful detail is in the exception chain: the outer message names the
-     * operation, the inner one names the keyword that failed.
-     */
     private function describeValidationFailure(Throwable $e): string
     {
         $lines = [$e->getMessage()];

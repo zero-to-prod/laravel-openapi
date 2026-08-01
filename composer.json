@@ -12,6 +12,7 @@
     },
     "require-dev": {
         "devizzent/cebe-php-openapi": "^1.1",
+        "laravel/mcp": "^0.9",
         "laravel/pint": "^1.30",
         "league/openapi-psr7-validator": "^0.24.0",
         "nyholm/psr7": "^1.8",
@@ -23,6 +24,7 @@
     },
     "suggest": {
         "devizzent/cebe-php-openapi": "Required by `php artisan openapi:validate` to validate the generated document.",
+        "laravel/mcp": "Required by the MCP server that exposes this package's documentation to coding agents.",
         "league/openapi-psr7-validator": "Required by the ValidatesSchema test trait to match responses against the document.",
         "nyholm/psr7": "PSR-7 implementation used by the ValidatesSchema test trait.",
         "symfony/psr-http-message-bridge": "Converts Laravel requests and responses to PSR-7 for the ValidatesSchema test trait."
@@ -54,6 +56,10 @@
         "bc-check": [
             "Composer\\Config::disableProcessTimeout",
             "bin/bc-check.sh"
+        ],
+        "require-check": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/require-check.sh"
         ],
         "check": [
             "@lint",

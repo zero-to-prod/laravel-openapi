@@ -39,6 +39,12 @@ composer require --dev devizzent/cebe-php-openapi
 composer require --dev league/openapi-psr7-validator symfony/psr-http-message-bridge nyholm/psr7
 ```
 
+A third unlocks the [MCP server](#mcp-server), which is unrelated to the three layers and only there for coding agents:
+
+```bash
+composer require --dev laravel/mcp
+```
+
 ## Quick start
 
 Annotate a controller method with the OpenAPI fragment that describes it. The array is plain OpenAPI — whatever you
@@ -249,12 +255,144 @@ covered by any matching concrete status.
 
 `assertSchemaFullyExercised()` is also available for the same check inside a single-process suite.
 
+## MCP server
+
+The package ships an MCP (Model Context Protocol) server that exposes this package's own documentation to AI agents,
+so an agent writing `#[ApiSchema]` attributes can read how they are meant to be shaped instead of guessing.
+
+### Installation
+
+The MCP server requires `laravel/mcp`, which is optional — without it, nothing is registered and the rest of the
+package behaves exactly as before:
+
+```bash
+composer require --dev laravel/mcp
+```
+
+There is no install command to run. The service provider registers the server under the `laravel-openapi` handle when
+it boots, so it is ready as soon as the package is installed. Confirm it is there:
+
+```bash
+php artisan mcp:start laravel-openapi
+```
+
+That starts a stdio server and waits on standard input, which is what an agent attaches to. Press `Ctrl+C` to exit.
+
+### Set up your agents
+
+```bash tab=Claude Code
+claude mcp add -s local -t stdio laravel-openapi php artisan mcp:start laravel-openapi
+```
+
+```bash tab=Codex
+codex mcp add laravel-openapi -- php "artisan" "mcp:start" "laravel-openapi"
+```
+
+```bash tab=Gemini CLI
+gemini mcp add -s project -t stdio laravel-openapi php artisan mcp:start laravel-openapi
+```
+
+```text tab=Cursor
+1. Create `.cursor/mcp.json` in your project root with the JSON below
+2. Open the command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
+3. Press `enter` on "Open MCP Settings"
+4. Turn the toggle on for `laravel-openapi`
+
+{
+    "mcpServers": {
+        "laravel-openapi": {
+            "type": "stdio",
+            "command": "php",
+            "args": ["artisan", "mcp:start", "laravel-openapi"]
+        }
+    }
+}
+```
+
+```text tab=GitHub Copilot (VS Code)
+1. Create `.vscode/mcp.json` in your project root with the JSON below — note the
+   top-level key is `servers`, not `mcpServers`
+2. Open the command palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
+3. Press `enter` on "MCP: List Servers"
+4. Arrow to `laravel-openapi` and press `enter`, then choose "Start server"
+
+{
+    "servers": {
+        "laravel-openapi": {
+            "type": "stdio",
+            "command": "php",
+            "args": ["artisan", "mcp:start", "laravel-openapi"]
+        }
+    }
+}
+```
+
+```text tab=Junie
+1. Create `.junie/mcp/mcp.json` in your project root with the JSON below, or add
+   the server through Tools | Junie | MCP Settings to write it for you
+2. Press `shift` twice to open the command palette
+3. Search "MCP Settings" and press `enter`
+4. Check the box next to `laravel-openapi`, then click "Apply"
+
+{
+    "mcpServers": {
+        "laravel-openapi": {
+            "command": "php",
+            "args": ["artisan", "mcp:start", "laravel-openapi"]
+        }
+    }
+}
+```
+
+> [!NOTE]
+> Every registration above runs `php artisan` from the project root. If your PHP does not live on the host — Sail,
+> Docker, or another container — substitute the command your project actually uses, such as `./vendor/bin/sail` with
+> args `artisan mcp:start laravel-openapi`.
+
+### Available MCP tools
+
+<div class="overflow-auto">
+
+| Name     | Notes                                                                                                   |
+|----------|---------------------------------------------------------------------------------------------------------|
+| Readme   | Read this README, covering the `#[ApiSchema]` attribute, both Artisan commands, and the test trait      |
+
+</div>
+
+### Manually registering the MCP server
+
+Sometimes you may need to register the server with an editor not listed above. You should register it using the
+following details:
+
+<table>
+<tr><td><strong>Command</strong></td><td><code>php</code></td></tr>
+<tr><td><strong>Args</strong></td><td><code>artisan mcp:start laravel-openapi</code></td></tr>
+</table>
+
+JSON example:
+
+```json
+{
+    "mcpServers": {
+        "laravel-openapi": {
+            "command": "php",
+            "args": ["artisan", "mcp:start", "laravel-openapi"]
+        }
+    }
+}
+```
+
+The handle is configurable. Set `openapi.mcp.handle` to rename it, and pass the new name to `mcp:start` and to every
+registration above. Set `openapi.mcp.enabled` to `false` to register no server at all.
+
 ## Configuration reference
 
 | Key                     | Default                                                | Purpose                                |
 |-------------------------|--------------------------------------------------------|----------------------------------------|
 | `openapi.route.*`       | see above                                              | Where the schema endpoint lives        |
 | `openapi.openapi`       | `3.0.4` / `JSON:API` / `1.0.0` / `[{url: '/'}]`        | Document-level fields                  |
+| `openapi.mcp.enabled`   | `true`                                                 | Whether the MCP server is registered   |
+| `openapi.mcp.handle`    | `laravel-openapi`                                      | The handle `mcp:start` is called with  |
 | `openapi.coverage.path` | `storage/framework/cache/openapi-coverage.jsonl`       | Where validated responses are recorded |
 
 ## Known limitations

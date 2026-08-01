@@ -178,23 +178,9 @@ use ZeroToProd\LaravelOpenapi\Http\Controllers\SchemaController;
 #[Attribute(Attribute::TARGET_METHOD)]
 class ApiSchema
 {
-    /**
-     * Only `paths` and `components` are read from the fragment; the remaining
-     * document-level fields come from the `openapi` config. Path keys are
-     * resolved against `servers`, so declare the path the route serves minus
-     * any base published in the server URL.
-     *
-     * @param  array{paths?: array<string, PathItem>, components?: Components}  $schema
-     */
+    /** @param  array{paths?: array<string, PathItem>, components?: Components}  $schema */
     public function __construct(public readonly array $schema = []) {}
 
-    /**
-     * Register the package's routes with no prefix or middleware of their own,
-     * so the caller decides where they live.
-     *
-     * Used by the package's own route file, and available to applications that
-     * set `openapi.route.enabled` to false and place the route themselves.
-     */
     public static function routes(?string $uri = null, ?string $name = null): Registered
     {
         return Route::get(

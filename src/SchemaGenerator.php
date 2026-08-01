@@ -14,9 +14,7 @@ use ReflectionMethod;
  */
 readonly class SchemaGenerator
 {
-    /**
-     * @param  array<string, mixed>  $document  Document-level fields: openapi, info, servers, ...
-     */
+    /** @param  array<string, mixed>  $document  Document-level fields: openapi, info, servers, ... */
     public function __construct(private Router $router, private array $document = []) {}
 
     /** @return array<string, mixed> */

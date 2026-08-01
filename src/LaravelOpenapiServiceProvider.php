@@ -9,15 +9,15 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Mcp\Facades\Mcp;
+use Override;
 use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
 use ZeroToProd\LaravelOpenapi\Console\ValidateSchemaCommand;
+use ZeroToProd\LaravelOpenapi\Mcp\OpenapiServer;
 
 class LaravelOpenapiServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any package services.
-     */
-    #[\Override]
+    #[Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/openapi.php', 'openapi');
@@ -28,14 +28,13 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
         ));
     }
 
-    /**
-     * Bootstrap any package services.
-     */
     public function boot(): void
     {
         if (Config::boolean('openapi.route.enabled', true)) {
             $this->registerRoutes();
         }
+
+        $this->registerMcpServer();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -49,9 +48,19 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
         }
     }
 
-    /**
-     * Register the package's routes.
-     */
+    protected function registerMcpServer(): void
+    {
+        if (! class_exists(Mcp::class)) {
+            return;
+        }
+
+        if (! Config::boolean('openapi.mcp.enabled', true)) {
+            return;
+        }
+
+        Mcp::local(Config::string('openapi.mcp.handle', 'laravel-openapi'), OpenapiServer::class);
+    }
+
     protected function registerRoutes(): void
     {
         Route::group([

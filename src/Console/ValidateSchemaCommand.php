@@ -12,6 +12,7 @@ use Illuminate\Console\Command;
 use Throwable;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
+/** @internal */
 class ValidateSchemaCommand extends Command
 {
     protected $signature = 'openapi:validate';

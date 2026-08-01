@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
+/** @internal */
 readonly class SchemaController
 {
     #[ApiSchema([

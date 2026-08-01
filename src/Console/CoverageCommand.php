@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
+/** @internal */
 class CoverageCommand extends Command
 {
     protected $signature = 'openapi:coverage {--reset : Discard recorded coverage and exit}';

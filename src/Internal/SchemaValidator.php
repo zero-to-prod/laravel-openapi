@@ -13,30 +13,15 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
-/**
- * @internal
- * Validates a request/response pair against the generated document, so the
- * schema is checked against behavior rather than against itself.
- */
+/** @internal */
 class SchemaValidator
 {
-    /**
-     * Building a validator parses the whole document, so they are reused. The
-     * key is the document itself: a test that registers new routes changes the
-     * document and gets its own validator.
-     *
-     * @var array<string, ValidatorBuilder>
-     */
+    /** @var array<string, ValidatorBuilder> */
     private static array $builders = [];
 
     public function __construct(private readonly SchemaGenerator $generator) {}
 
-    /**
-     * Throws League\OpenAPIValidation\PSR7\Exception\ValidationFailed when the
-     * request or response contradicts the document.
-     *
-     * @throws JsonException|ValidationFailed
-     */
+    /** @throws JsonException|ValidationFailed */
     public function validate(Request $request, Response $response): OperationAddress
     {
         $builder = $this->builder();
@@ -51,9 +36,7 @@ class SchemaValidator
         return $address;
     }
 
-    /**
-     * @throws JsonException
-     */
+    /** @throws JsonException */
     private function builder(): ValidatorBuilder
     {
         $json = json_encode($this->generator->document(), JSON_THROW_ON_ERROR);

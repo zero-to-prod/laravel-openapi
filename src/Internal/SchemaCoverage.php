@@ -8,33 +8,15 @@ use Illuminate\Support\Facades\Config;
 use JsonException;
 use RuntimeException;
 
-/**
- * @internal
- * Records which declared operations a test suite actually exercised.
- *
- * A response that matches its schema only proves the endpoints the suite
- * happens to reach are honest. Anything declared but never exercised is
- * unverified, so the state is deliberately static: it accumulates across
- * tests within a process.
- */
+/** @internal */
 class SchemaCoverage
 {
-    /** The OpenAPI operations a Path Item may declare. */
     private const array operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 
-    /**
-     * Exercised responses, as [path][method][status].
-     *
-     * @var array<string, array<string, array<int, true>>>
-     */
+    /** @var array<string, array<string, array<int, true>>> */
     private static array $exercised = [];
 
-    /**
-     * Only responses not already seen reach the disk, so a suite appends once
-     * per distinct operation rather than once per assertion.
-     *
-     * @throws JsonException
-     */
+    /** @throws JsonException */
     public static function record(string $path, string $method, int $status): void
     {
         $method = strtolower($method);
@@ -48,11 +30,6 @@ class SchemaCoverage
         self::persist($path, $method, $status);
     }
 
-    /**
-     * Merge coverage recorded by earlier processes into this one. Parallel test
-     * workers each append, so the file is the union of every run since the last
-     * purge.
-     */
     public static function load(): void
     {
         if (! is_file($file = self::path())) {
@@ -69,8 +46,6 @@ class SchemaCoverage
     }
 
     /**
-     * Every response the document declares.
-     *
      * @param  array<string, mixed>  $document
      * @return list<string>
      */
@@ -87,8 +62,6 @@ class SchemaCoverage
     }
 
     /**
-     * Declared responses that no test exercised.
-     *
      * @param  array<string, mixed>  $document
      * @return list<string>
      */
@@ -108,8 +81,6 @@ class SchemaCoverage
     }
 
     /**
-     * Every declared response, as [path, method, status].
-     *
      * @param  array<string, mixed>  $document
      * @return list<array{0: string, 1: string, 2: string}>
      */
@@ -149,9 +120,7 @@ class SchemaCoverage
         return $responses;
     }
 
-    /**
-     * @return list<string>
-     */
+    /** @return list<string> */
     public static function exercised(): array
     {
         $exercised = [];
@@ -169,19 +138,11 @@ class SchemaCoverage
         return $exercised;
     }
 
-    /**
-     * Forget coverage recorded in this process, leaving the persisted file
-     * alone. Mainly useful for proving that persistence works.
-     */
     public static function flush(): void
     {
         self::$exercised = [];
     }
 
-    /**
-     * Discard coverage entirely, in memory and on disk. Run before a suite, not
-     * between tests: parallel workers share the file.
-     */
     public static function purge(): void
     {
         self::flush();
@@ -199,12 +160,7 @@ class SchemaCoverage
         );
     }
 
-    /**
-     * Appended as JSON Lines so concurrent workers can each add records
-     * without coordinating.
-     *
-     * @throws JsonException
-     */
+    /** @throws JsonException */
     private static function persist(string $path, string $method, int $status): void
     {
         $file = self::path();
@@ -224,9 +180,6 @@ class SchemaCoverage
         }
     }
 
-    /**
-     * A declared response may be a concrete status, a `2XX` range, or `default`.
-     */
     private static function covers(string $path, string $method, string $declared): bool
     {
         foreach (array_keys(self::$exercised[$path][$method] ?? []) as $status) {
