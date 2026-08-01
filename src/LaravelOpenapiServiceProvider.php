@@ -15,19 +15,22 @@ use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
 use ZeroToProd\LaravelOpenapi\Console\ValidateSchemaCommand;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 
+/** @internal */
 class LaravelOpenapiServiceProvider extends ServiceProvider
 {
+    /** @internal */
     #[Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/openapi.php', 'openapi');
 
-        $this->app->singleton(SchemaGenerator::class, static fn (Application $app): SchemaGenerator => new SchemaGenerator(
+        $this->app->singleton(SchemaGenerator::class, static fn(Application $app): SchemaGenerator => new SchemaGenerator(
             $app->make(Router::class),
             Config::array('openapi.openapi', []),
         ));
     }
 
+    /** @internal */
     public function boot(): void
     {
         if (Config::boolean('openapi.route.enabled', true)) {
@@ -50,15 +53,13 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
 
     protected function registerMcpServer(): void
     {
-        // Unreachable here: the suite installs laravel/mcp, so this guard only
-        // fires in a consumer that skipped the suggested package.
         // @codeCoverageIgnoreStart
-        if (! class_exists(Mcp::class)) {
+        if (!class_exists(Mcp::class)) {
             return;
         }
         // @codeCoverageIgnoreEnd
 
-        if (! Config::boolean('openapi.mcp.enabled', true)) {
+        if (!Config::boolean('openapi.mcp.enabled', true)) {
             return;
         }
 
