@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelOpenapi\Mcp;
+namespace ZeroToProd\LaravelOpenapi\Internal\Mcp;
 
-use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Tool;
-use ZeroToProd\LaravelOpenapi\Mcp\Tools\Readme;
+use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Api;
+use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Readme;
 
 /** @internal */
-class OpenapiServer extends Server
+class Server extends \Laravel\Mcp\Server
 {
     protected string $name = 'Laravel OpenAPI';
 
@@ -29,5 +29,6 @@ class OpenapiServer extends Server
     /** @var array<int, class-string<Tool>> */
     protected array $tools = [
         Readme::class,
+        Api::class,
     ];
 }

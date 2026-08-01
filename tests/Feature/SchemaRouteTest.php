@@ -29,6 +29,14 @@ it('omits routes without a #[ApiSchema] attribute', function (): void {
     expect(array_keys(app(SchemaGenerator::class)->document()['paths']))->toBe(['/openapi.json']);
 });
 
+it('omits a route whose action method does not exist on the controller', function (): void {
+    // Registration does not verify the method, so reflection has to be guarded
+    // rather than assumed to succeed.
+    Route::get('/ghost', [ZeroValuedController::class, 'noSuchMethod']);
+
+    expect(array_keys(app(SchemaGenerator::class)->document()['paths']))->toBe(['/openapi.json']);
+});
+
 it('serves meaningful falsy values instead of dropping them', function (): void {
     Route::get('zero-valued', ZeroValuedController::class);
 

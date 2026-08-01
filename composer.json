@@ -48,11 +48,13 @@
     },
     "scripts": {
         "test": "pest",
+        "coverage": "pest --coverage --min=100",
         "analyse": "phpstan analyse",
         "format": "pint",
         "lint": "pint --test",
         "rector": "rector process",
         "rector-lint": "rector process --dry-run",
+        "mcp": "bin/mcp.sh",
         "bc-check": [
             "Composer\\Config::disableProcessTimeout",
             "bin/bc-check.sh"
@@ -65,7 +67,7 @@
             "@lint",
             "@rector-lint",
             "@analyse",
-            "@test",
+            "@coverage",
             "@bc-check"
         ],
         "fix": [

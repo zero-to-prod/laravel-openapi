@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Laravel\Mcp\Server\Registrar;
-use ZeroToProd\LaravelOpenapi\Mcp\OpenapiServer;
-use ZeroToProd\LaravelOpenapi\Mcp\Tools\Readme;
+use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
+use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Readme;
 
 it('registers the server under the laravel-openapi handle', function (): void {
     expect($this->app->make(Registrar::class)->getLocalServer('laravel-openapi'))->not->toBeNull();
@@ -26,7 +26,7 @@ it('registers under a configured handle', function (): void {
 });
 
 it('returns the readme', function (): void {
-    OpenapiServer::tool(Readme::class)
+    Server::tool(Readme::class)
         ->assertOk()
         ->assertHasNoErrors()
         ->assertName('readme')

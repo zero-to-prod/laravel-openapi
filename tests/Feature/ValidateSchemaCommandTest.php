@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\DanglingReferenceController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\MissingResponsesController;
 
@@ -39,6 +41,20 @@ it('fails when a reference does not resolve', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)->toContain('#/components/schemas/DoesNotExist');
+});
+
+it('fails when the generated document cannot be read', function (): void {
+    // Invalid UTF-8 in a document-level field, so the json_encode() feeding the
+    // reader throws before any specification exists to validate.
+    app()->instance(SchemaGenerator::class, new SchemaGenerator(
+        app(Router::class),
+        ['openapi' => "\xB1\x31"],
+    ));
+
+    [$status, $output] = validateSchema();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('could not be read');
 });
 
 it('reports every error at once rather than stopping at the first', function (): void {

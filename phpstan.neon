@@ -8,9 +8,4 @@ parameters:
         - tests
     excludePaths:
         analyse:
-            # Pest binds test closures to the TestCase at runtime. PHPStan sees
-            # `$this` as Pest\PendingCalls\TestCall instead, so every
-            # `$this->getJson()` in a test file reports as an undefined method.
-            # The fixtures and the base TestCase are still analysed, which is
-            # where the #[ApiSchema] shapes are actually checked.
             - tests/Feature

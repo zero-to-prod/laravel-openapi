@@ -26,12 +26,16 @@ trait ValidatesSchema
      */
     protected function assertMatchesSchema(TestResponse $response): TestResponse
     {
+        // Unreachable here: the suite installs the validator, so this guard
+        // only fires in a consumer that skipped the suggested package.
+        // @codeCoverageIgnoreStart
         if (! class_exists(ValidatorBuilder::class)) {
             Assert::fail(
                 'Matching responses against the schema requires league/openapi-psr7-validator. '
                 .'Install it with `composer require --dev league/openapi-psr7-validator symfony/psr-http-message-bridge nyholm/psr7`.'
             );
         }
+        // @codeCoverageIgnoreEnd
 
         if ($response->baseRequest === null) {
             Assert::fail('The response was not produced by an HTTP test request, so no operation can be resolved.');

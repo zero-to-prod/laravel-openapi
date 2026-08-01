@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\AssertionFailedError;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
@@ -65,6 +67,43 @@ it('reports declared responses that no test exercised', function (): void {
 
     expect(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))
         ->toBe(['GET /lying -> 200', 'GET /openapi.json -> 200']);
+});
+
+it('passes the full-coverage assertion once every declared response is exercised', function (): void {
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
+
+    $this->assertSchemaFullyExercised();
+});
+
+it('fails the full-coverage assertion while a declared response is unexercised', function (): void {
+    Route::get('lying', LyingController::class);
+
+    $failure = null;
+
+    try {
+        $this->assertSchemaFullyExercised();
+    } catch (AssertionFailedError $e) {
+        $failure = $e->getMessage();
+    }
+
+    expect($failure)->not->toBeNull('An unexercised response was reported as covered.')
+        ->and($failure)->toContain('declares 2 response(s) that no test exercised')
+        ->and($failure)->toContain('GET /lying -> 200');
+});
+
+it('rejects a response that did not come from an HTTP test request', function (): void {
+    $failure = null;
+
+    try {
+        // Built directly rather than through getJson(), so baseRequest is null
+        // and no operation can be resolved.
+        $this->assertMatchesSchema(new TestResponse(new JsonResponse(['ok' => true])));
+    } catch (AssertionFailedError $e) {
+        $failure = $e->getMessage();
+    }
+
+    expect($failure)->not->toBeNull('A response with no base request was accepted.')
+        ->and($failure)->toContain('not produced by an HTTP test request');
 });
 
 it('treats a range or default declaration as covered by a concrete status', function (): void {

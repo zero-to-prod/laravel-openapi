@@ -353,9 +353,10 @@ gemini mcp add -s project -t stdio laravel-openapi php artisan mcp:start laravel
 
 <div class="overflow-auto">
 
-| Name     | Notes                                                                                                   |
-|----------|---------------------------------------------------------------------------------------------------------|
-| Readme   | Read this README, covering the `#[ApiSchema]` attribute, both Artisan commands, and the test trait      |
+| Name       | Notes                                                                                                 |
+|------------|---------------------------------------------------------------------------------------------------------|
+| `readme`   | Read this README, covering the `#[ApiSchema]` attribute, both Artisan commands, and the test trait    |
+| `api`      | List the supported classes as PHP stubs: public properties and method signatures, internals excluded  |
 
 </div>
 

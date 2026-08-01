@@ -21,6 +21,9 @@ class ValidateSchemaCommand extends Command
 
     public function handle(SchemaGenerator $generator): int
     {
+        // Unreachable here: the suite installs the reader, so this guard only
+        // fires in a consumer that skipped the suggested package.
+        // @codeCoverageIgnoreStart
         if (! class_exists(Reader::class)) {
             $this->components->error(
                 'Validation requires devizzent/cebe-php-openapi. Install it with '
@@ -29,6 +32,7 @@ class ValidateSchemaCommand extends Command
 
             return self::FAILURE;
         }
+        // @codeCoverageIgnoreEnd
 
         $document = $generator->document();
 

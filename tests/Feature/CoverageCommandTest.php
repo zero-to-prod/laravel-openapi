@@ -68,6 +68,20 @@ it('appends one record per distinct response, not per assertion', function (): v
         ->toHaveCount(1);
 });
 
+it('warns when the document declares no responses at all', function (): void {
+    // With the package route disabled nothing declares a response, so there is
+    // no denominator to report against.
+    $this->withConfig([
+        'openapi.route.enabled' => false,
+        'openapi.coverage.path' => sys_get_temp_dir().'/openapi-coverage-test/coverage.jsonl',
+    ]);
+
+    [$status, $output] = coverage();
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('declares no responses');
+});
+
 it('discards recorded coverage on --reset', function (): void {
     SchemaCoverage::record('/openapi.json', 'get', 200);
 

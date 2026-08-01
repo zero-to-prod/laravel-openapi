@@ -13,7 +13,7 @@ use Laravel\Mcp\Facades\Mcp;
 use Override;
 use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
 use ZeroToProd\LaravelOpenapi\Console\ValidateSchemaCommand;
-use ZeroToProd\LaravelOpenapi\Mcp\OpenapiServer;
+use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 
 class LaravelOpenapiServiceProvider extends ServiceProvider
 {
@@ -50,15 +50,19 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
 
     protected function registerMcpServer(): void
     {
+        // Unreachable here: the suite installs laravel/mcp, so this guard only
+        // fires in a consumer that skipped the suggested package.
+        // @codeCoverageIgnoreStart
         if (! class_exists(Mcp::class)) {
             return;
         }
+        // @codeCoverageIgnoreEnd
 
         if (! Config::boolean('openapi.mcp.enabled', true)) {
             return;
         }
 
-        Mcp::local(Config::string('openapi.mcp.handle', 'laravel-openapi'), OpenapiServer::class);
+        Mcp::local(Config::string('openapi.mcp.handle', 'laravel-openapi'), Server::class);
     }
 
     protected function registerRoutes(): void
