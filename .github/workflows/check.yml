@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # `composer check` ends with the backwards compatibility check, which
+          # diffs HEAD against the last SemVer tag. The default shallow clone
+          # fetches no tags, so it would have no baseline to compare against.
+          fetch-depth: 0
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

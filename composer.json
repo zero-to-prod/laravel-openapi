@@ -51,11 +51,16 @@
         "lint": "pint --test",
         "rector": "rector process",
         "rector-lint": "rector process --dry-run",
+        "bc-check": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/bc-check.sh"
+        ],
         "check": [
             "@lint",
             "@rector-lint",
             "@analyse",
-            "@test"
+            "@test",
+            "@bc-check"
         ],
         "fix": [
             "@rector",
