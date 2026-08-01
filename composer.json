@@ -19,7 +19,7 @@
         "pestphp/pest": "^3.0|^4.0",
         "phpstan/phpstan": "^2.2",
         "rector/rector": "^2.5",
-        "symfony/psr-http-message-bridge": "^8.1"
+        "symfony/psr-http-message-bridge": "^7.4|^8.1"
     },
     "suggest": {
         "devizzent/cebe-php-openapi": "Required by `php artisan openapi:validate` to validate the generated document.",
@@ -66,6 +66,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true
+        },
+        "platform": {
         }
     },
     "minimum-stability": "stable",
