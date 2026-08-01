@@ -3,38 +3,37 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ZeroValuedController;
 
 it('serves the document-level fields from config', function (): void {
-    $this->getJson('openapi/schema')
+    $this->getJson('openapi.json')
         ->assertOk()
         ->assertJsonPath('openapi', '3.0.4')
         ->assertJsonPath('info.title', 'JSON:API')
-        ->assertJsonPath('servers.0.url', '/openapi');
+        ->assertJsonPath('servers.0.url', '/');
 });
 
 it('documents routes declaring a #[ApiSchema] attribute', function (): void {
-    $response = $this->getJson('openapi/schema')
-        ->assertJsonPath('paths./schema.get.operationId', 'getSchema');
+    // Declared paths contain dots, so dot-notation lookups would split them.
+    $operation = $this->getJson('openapi.json')->assertOk()->json('paths')['/openapi.json']['get'];
 
-    $content = $response->json('paths./schema.get.responses.200.content');
-
-    expect($content['application/json']['schema']['properties']['openapi']['type'])->toBe('string');
+    expect($operation['operationId'])->toBe('getSchema')
+        ->and($operation['responses']['200']['content']['application/json']['schema']['properties']['openapi']['type'])
+        ->toBe('string');
 });
 
 it('omits routes without a #[ApiSchema] attribute', function (): void {
     Route::get('/undocumented', static fn () => null);
 
-    expect(array_keys(app(SchemaGenerator::class)->document()[OpenApi::paths]))->toBe(['/schema']);
+    expect(array_keys(app(SchemaGenerator::class)->document()['paths']))->toBe(['/openapi.json']);
 });
 
 it('serves meaningful falsy values instead of dropping them', function (): void {
-    Route::get('openapi/zero-valued', ZeroValuedController::class);
+    Route::get('zero-valued', ZeroValuedController::class);
 
-    $schema = $this->getJson('openapi/schema')
-        ->json('paths./zero-valued.get.responses.200.content')['application/vnd.api+json']['schema'];
+    $schema = $this->getJson('openapi.json')
+        ->json('paths')['/zero-valued']['get']['responses']['200']['content']['application/vnd.api+json']['schema'];
 
     expect($schema)->toBe([
         'type' => 'integer',

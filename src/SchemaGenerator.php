@@ -7,7 +7,6 @@ namespace ZeroToProd\LaravelOpenapi;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use ReflectionMethod;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
 
 /**
  * Builds an OpenAPI document from the #[ApiSchema] attributes declared on the
@@ -39,8 +38,8 @@ class SchemaGenerator
         foreach ($this->router->getRoutes() as $route) {
             $schema = $this->schemaFor($route);
 
-            $paths[] = $schema[OpenApi::paths] ?? [];
-            $components[] = $schema[OpenApi::components] ?? [];
+            $paths[] = $schema['paths'] ?? [];
+            $components[] = $schema['components'] ?? [];
         }
 
         $paths = array_replace_recursive([], ...$paths);
@@ -50,8 +49,8 @@ class SchemaGenerator
 
         return array_replace_recursive(
             $this->document,
-            [OpenApi::paths => $paths],
-            $components === [] ? [] : [OpenApi::components => $components],
+            ['paths' => $paths],
+            $components === [] ? [] : ['components' => $components],
         );
     }
 

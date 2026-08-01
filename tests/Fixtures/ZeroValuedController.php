@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
-use Zerotoprod\DataModelOpenapi30\MediaType;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Response;
-use Zerotoprod\DataModelOpenapi30\Schema;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
@@ -19,19 +13,19 @@ use ZeroToProd\LaravelOpenapi\ApiSchema;
 class ZeroValuedController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/zero-valued' => [
-                PathItem::get => [
-                    Operation::responses => [
+                'get' => [
+                    'responses' => [
                         '200' => [
-                            Response::description => 'Bounded by zero.',
-                            Response::content => [
+                            'description' => 'Bounded by zero.',
+                            'content' => [
                                 'application/vnd.api+json' => [
-                                    MediaType::schema => [
-                                        Schema::type => 'integer',
-                                        Schema::minimum => 0,
-                                        Schema::example => 0,
-                                        Schema::default => 0,
+                                    'schema' => [
+                                        'type' => 'integer',
+                                        'minimum' => 0,
+                                        'example' => 0,
+                                        'default' => 0,
                                     ],
                                 ],
                             ],

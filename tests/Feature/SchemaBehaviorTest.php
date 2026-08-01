@@ -17,16 +17,16 @@ beforeEach(function (): void {
 afterEach(fn () => SchemaCoverage::purge());
 
 it('matches the schema endpoint against its own declaration', function (): void {
-    $this->assertMatchesSchema($this->getJson('openapi/schema')->assertOk());
+    $this->assertMatchesSchema($this->getJson('openapi.json')->assertOk());
 });
 
 it('fails when a response contradicts its declared schema', function (): void {
-    Route::get('openapi/lying', LyingController::class);
+    Route::get('lying', LyingController::class);
 
     $failure = null;
 
     try {
-        $this->assertMatchesSchema($this->getJson('openapi/lying')->assertOk());
+        $this->assertMatchesSchema($this->getJson('lying')->assertOk());
     } catch (AssertionFailedError $e) {
         $failure = $e->getMessage();
     }
@@ -37,12 +37,12 @@ it('fails when a response contradicts its declared schema', function (): void {
 });
 
 it('fails when a route responds with an undeclared status code', function (): void {
-    Route::get('openapi/undeclared-status', UndeclaredStatusController::class);
+    Route::get('undeclared-status', UndeclaredStatusController::class);
 
     $failure = null;
 
     try {
-        $this->assertMatchesSchema($this->getJson('openapi/undeclared-status'));
+        $this->assertMatchesSchema($this->getJson('undeclared-status'));
     } catch (AssertionFailedError $e) {
         $failure = $e->getMessage();
     }
@@ -54,17 +54,17 @@ it('fails when a route responds with an undeclared status code', function (): vo
 it('records an operation as exercised once its response is validated', function (): void {
     expect(SchemaCoverage::exercised())->toBe([]);
 
-    $this->assertMatchesSchema($this->getJson('openapi/schema'));
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
 
-    expect(SchemaCoverage::exercised())->toBe(['GET /schema -> 200'])
+    expect(SchemaCoverage::exercised())->toBe(['GET /openapi.json -> 200'])
         ->and(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))->toBe([]);
 });
 
 it('reports declared responses that no test exercised', function (): void {
-    Route::get('openapi/lying', LyingController::class);
+    Route::get('lying', LyingController::class);
 
     expect(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))
-        ->toBe(['GET /lying -> 200', 'GET /schema -> 200']);
+        ->toBe(['GET /lying -> 200', 'GET /openapi.json -> 200']);
 });
 
 it('treats a range or default declaration as covered by a concrete status', function (): void {

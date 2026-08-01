@@ -25,19 +25,19 @@ it('fails when nothing was recorded', function (): void {
 
     expect($status)->toBe(1)
         ->and($output)->toContain('1 of 1 declared responses were never exercised')
-        ->and($output)->toContain('GET /schema -> 200')
+        ->and($output)->toContain('GET /openapi.json -> 200')
         ->and($output)->toContain('No coverage was recorded at all');
 });
 
 it('reads coverage recorded before the current process', function (): void {
-    $this->assertMatchesSchema($this->getJson('openapi/schema'));
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
 
     // Drop the in-memory record, leaving only the persisted file, as a separate
     // process would see it.
     SchemaCoverage::flush();
 
     expect(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))
-        ->toBe(['GET /schema -> 200']);
+        ->toBe(['GET /openapi.json -> 200']);
 
     [$status, $output] = coverage();
 
@@ -46,9 +46,9 @@ it('reads coverage recorded before the current process', function (): void {
 });
 
 it('still fails when only some declared responses were exercised', function (): void {
-    Route::get('openapi/lying', LyingController::class);
+    Route::get('lying', LyingController::class);
 
-    SchemaCoverage::record('/schema', 'get', 200);
+    SchemaCoverage::record('/openapi.json', 'get', 200);
     SchemaCoverage::flush();
 
     [$status, $output] = coverage();
@@ -60,16 +60,16 @@ it('still fails when only some declared responses were exercised', function (): 
 });
 
 it('appends one record per distinct response, not per assertion', function (): void {
-    $this->assertMatchesSchema($this->getJson('openapi/schema'));
-    $this->assertMatchesSchema($this->getJson('openapi/schema'));
-    $this->assertMatchesSchema($this->getJson('openapi/schema'));
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
+    $this->assertMatchesSchema($this->getJson('openapi.json'));
 
     expect(file(SchemaCoverage::path(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES))
         ->toHaveCount(1);
 });
 
 it('discards recorded coverage on --reset', function (): void {
-    SchemaCoverage::record('/schema', 'get', 200);
+    SchemaCoverage::record('/openapi.json', 'get', 200);
 
     expect(SchemaCoverage::path())->toBeFile();
 

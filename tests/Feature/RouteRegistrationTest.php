@@ -15,9 +15,9 @@ function openApiRoutes(): array
 }
 
 it('registers the route by default', function (): void {
-    expect(openApiRoutes())->toBe(['openapi.schema => openapi/schema']);
+    expect(openApiRoutes())->toBe(['openapi.schema => openapi.json']);
 
-    $this->getJson('openapi/schema')->assertOk();
+    $this->getJson('openapi.json')->assertOk();
 });
 
 it('registers nothing when the route is disabled', function (): void {
@@ -25,30 +25,30 @@ it('registers nothing when the route is disabled', function (): void {
 
     expect(openApiRoutes())->toBe([]);
 
-    $this->getJson('openapi/schema')->assertNotFound();
+    $this->getJson('openapi.json')->assertNotFound();
 });
 
 it('honours a configured uri', function (): void {
-    $this->withConfig(['openapi.route.uri' => 'openapi']);
+    $this->withConfig(['openapi.route.uri' => 'docs.json']);
 
-    expect(openApiRoutes())->toBe(['openapi.schema => openapi/openapi']);
+    expect(openApiRoutes())->toBe(['openapi.schema => docs.json']);
 
-    $this->getJson('openapi/openapi')->assertOk();
-    $this->getJson('openapi/schema')->assertNotFound();
+    $this->getJson('docs.json')->assertOk();
+    $this->getJson('openapi.json')->assertNotFound();
 });
 
 it('surfaces the document drift a configured uri causes', function (): void {
-    // SchemaController declares itself at `/schema`, so moving the route leaves
-    // the document describing a path that is no longer served. The response
-    // validator is what catches it.
-    $this->withConfig(['openapi.route.uri' => 'openapi']);
+    // SchemaController declares itself at `/openapi.json`, so moving the route
+    // leaves the document describing a path that is no longer served. The
+    // response validator is what catches it.
+    $this->withConfig(['openapi.route.uri' => 'docs.json']);
 
-    expect($this->getJson('openapi/openapi')->json('paths'))->toHaveKey('/schema');
+    expect($this->getJson('docs.json')->json('paths'))->toHaveKey('/openapi.json');
 
     $failure = null;
 
     try {
-        $this->assertMatchesSchema($this->getJson('openapi/openapi'));
+        $this->assertMatchesSchema($this->getJson('docs.json'));
     } catch (PHPUnit\Framework\AssertionFailedError $e) {
         $failure = $e->getMessage();
     }
@@ -60,15 +60,15 @@ it('surfaces the document drift a configured uri causes', function (): void {
 it('honours a configured name', function (): void {
     $this->withConfig(['openapi.route.name' => 'docs.openapi']);
 
-    expect(route('docs.openapi', absolute: false))->toBe('/openapi/schema');
+    expect(route('docs.openapi', absolute: false))->toBe('/openapi.json');
 });
 
 it('honours a configured prefix', function (): void {
     $this->withConfig(['openapi.route.prefix' => 'internal/docs']);
 
-    expect(openApiRoutes())->toBe(['openapi.schema => internal/docs/schema']);
+    expect(openApiRoutes())->toBe(['openapi.schema => internal/docs/openapi.json']);
 
-    $this->getJson('internal/docs/schema')->assertOk();
+    $this->getJson('internal/docs/openapi.json')->assertOk();
 });
 
 it('lets an application place the route itself when disabled', function (): void {
@@ -76,20 +76,20 @@ it('lets an application place the route itself when disabled', function (): void
 
     Route::prefix('internal')->group(static fn () => ApiSchema::routes());
 
-    expect(openApiRoutes())->toBe(['openapi.schema => internal/schema']);
+    expect(openApiRoutes())->toBe(['openapi.schema => internal/openapi.json']);
 
-    $this->getJson('internal/schema')->assertOk();
+    $this->getJson('internal/openapi.json')->assertOk();
 });
 
 it('accepts an explicit uri and name from the caller', function (): void {
     $this->withConfig(['openapi.route.enabled' => false]);
 
-    ApiSchema::routes('openapi.json', 'docs.schema');
+    ApiSchema::routes('docs/openapi.json', 'docs.schema');
 
     expect(openApiRoutes())->toBe([])
-        ->and(route('docs.schema', absolute: false))->toBe('/openapi.json');
+        ->and(route('docs.schema', absolute: false))->toBe('/docs/openapi.json');
 
-    $this->getJson('openapi.json')->assertOk();
+    $this->getJson('docs/openapi.json')->assertOk();
 });
 
 it('returns the route so the caller can keep configuring it', function (): void {

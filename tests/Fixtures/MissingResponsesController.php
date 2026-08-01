@@ -4,21 +4,15 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
-/**
- * Declares an operation without the required `responses` field.
- */
 class MissingResponsesController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/missing-responses' => [
-                PathItem::get => [
-                    Operation::summary => 'No responses declared',
+                'get' => [
+                    'summary' => 'No responses declared',
                 ],
             ],
         ],

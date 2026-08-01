@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Testing;
 
 use RuntimeException;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
 
 /**
  * @internal
@@ -118,7 +116,7 @@ class SchemaCoverage
     {
         $responses = [];
 
-        foreach ($document[OpenApi::paths] ?? [] as $path => $pathItem) {
+        foreach ($document['paths'] ?? [] as $path => $pathItem) {
             if (!is_array($pathItem)) {
                 continue;
             }
@@ -128,7 +126,7 @@ class SchemaCoverage
                     continue;
                 }
 
-                foreach (array_keys($pathItem[$method][Operation::responses] ?? []) as $status) {
+                foreach (array_keys($pathItem[$method]['responses'] ?? []) as $status) {
                     $responses[] = [(string)$path, $method, (string)$status];
                 }
             }

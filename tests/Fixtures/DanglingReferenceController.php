@@ -4,30 +4,21 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
-use Zerotoprod\DataModelOpenapi30\MediaType;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Reference;
-use Zerotoprod\DataModelOpenapi30\Response;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
-/**
- * References a component that no controller contributes.
- */
 class DanglingReferenceController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/dangling-reference' => [
-                PathItem::get => [
-                    Operation::responses => [
+                'get' => [
+                    'responses' => [
                         '200' => [
-                            Response::description => 'Refers to a missing schema.',
-                            Response::content => [
+                            'description' => 'Refers to a missing schema.',
+                            'content' => [
                                 'application/vnd.api+json' => [
-                                    MediaType::schema => [
-                                        Reference::ref => '#/components/schemas/DoesNotExist',
+                                    'schema' => [
+                                        '$ref' => '#/components/schemas/DoesNotExist',
                                     ],
                                 ],
                             ],

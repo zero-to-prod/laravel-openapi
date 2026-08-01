@@ -7,7 +7,7 @@ tested.
 A schema you hand-write is a claim. This package is built around the idea that a claim nobody checks is worth very
 little, so it ships three layers:
 
-1. **Generate** — `#[ApiSchema]` attributes on controller methods are merged into one document, served at `/openapi/schema`.
+1. **Generate** — `#[ApiSchema]` attributes on controller methods are merged into one document, served at `/openapi.json`.
 2. **Validate the document** — `openapi:validate` checks it against the OpenAPI specification.
 3. **Validate the behavior** — a test trait matches real requests and responses against the document, and
    `openapi:coverage` fails when a declared response was never exercised.
@@ -41,47 +41,39 @@ composer require --dev league/openapi-psr7-validator symfony/psr-http-message-br
 
 ## Quick start
 
-Annotate a controller method with the OpenAPI fragment that describes it. The constants come from
-[`zero-to-prod/data-model-openapi30`](https://github.com/zero-to-prod/data-model-openapi30), so the payload is
-checked by your IDE rather than being a bag of magic strings:
+Annotate a controller method with the OpenAPI fragment that describes it. The array is plain OpenAPI — whatever you
+write here is what ends up in the document, so anything the specification allows is available to you:
 
 ```php
 use Illuminate\Http\JsonResponse;
-use Zerotoprod\DataModelOpenapi30\MediaType;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\Parameter;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Response;
-use Zerotoprod\DataModelOpenapi30\Schema;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 class ShowArticleController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/articles/{id}' => [
-                PathItem::get => [
-                    Operation::operationId => 'showArticle',
-                    Operation::parameters => [
+                'get' => [
+                    'operationId' => 'showArticle',
+                    'parameters' => [
                         [
-                            Parameter::name => 'id',
-                            Parameter::in => 'path',
-                            Parameter::required => true,
-                            Parameter::schema => [Schema::type => 'string'],
+                            'name' => 'id',
+                            'in' => 'path',
+                            'required' => true,
+                            'schema' => ['type' => 'string'],
                         ],
                     ],
-                    Operation::responses => [
+                    'responses' => [
                         '200' => [
-                            Response::description => 'The article.',
-                            Response::content => [
+                            'description' => 'The article.',
+                            'content' => [
                                 'application/vnd.api+json' => [
-                                    MediaType::schema => [
-                                        Schema::type => 'object',
-                                        Schema::required => ['id', 'title'],
-                                        Schema::properties => [
-                                            'id' => [Schema::type => 'string'],
-                                            'title' => [Schema::type => 'string'],
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'required' => ['id', 'title'],
+                                        'properties' => [
+                                            'id' => ['type' => 'string'],
+                                            'title' => ['type' => 'string'],
                                         ],
                                     ],
                                 ],
@@ -102,25 +94,28 @@ class ShowArticleController
 }
 ```
 
-`GET /openapi/schema` now serves:
+`GET /openapi.json` now serves:
 
 ```json
 {
   "openapi": "3.0.4",
   "info": { "title": "JSON:API", "version": "1.0.0" },
-  "servers": [{ "url": "/openapi" }],
+  "servers": [{ "url": "/" }],
   "paths": {
     "/articles/{id}": { "get": { "operationId": "showArticle", "...": "..." } },
-    "/schema": { "get": { "operationId": "getSchema", "...": "..." } }
+    "/openapi.json": { "get": { "operationId": "getSchema", "...": "..." } }
   }
 }
 ```
 
-### Declared paths omit the route prefix
+### Declared paths are relative to `servers`
 
-Note that the attribute declares `/articles/{id}` while the route lives at `/openapi/articles/{id}`. The prefix is
-published once as `servers[0].url` instead of being repeated in every attribute. OpenAPI tooling resolves paths
-relative to the server URL, so this is correct — and the response validator relies on it.
+OpenAPI resolves every path against the first server URL, which defaults to `/`. So declare the path the route
+actually serves: a route at `/articles/{id}` is declared as `/articles/{id}`.
+
+If your whole API sits under a common base, set it once in `servers` and drop it from every attribute — a route at
+`/api/articles/{id}` with `servers` of `/api` is declared as `/articles/{id}`. The response validator honours the
+server URL either way, so both styles are checked against real traffic.
 
 ## How the document is assembled
 
@@ -134,7 +129,7 @@ Document-level fields that cannot be derived from routes come from config:
 'openapi' => [
     'openapi' => '3.0.4',
     'info' => ['title' => 'JSON:API', 'version' => '1.0.0'],
-    'servers' => [['url' => '/openapi']],
+    'servers' => [['url' => '/']],
 ],
 ```
 
@@ -143,14 +138,14 @@ should not break the endpoint that would tell you about it. That job belongs to 
 
 ## Routing
 
-By default the package registers one route: `GET /openapi/schema`, named `openapi.schema`. Every part is configurable:
+By default the package registers one route: `GET /openapi.json`, named `openapi.schema`. Every part is configurable:
 
 | Key                        | Default          | Purpose                                       |
 |----------------------------|------------------|-----------------------------------------------|
 | `openapi.route.enabled`    | `true`           | Register the route at all                     |
-| `openapi.route.uri`        | `'schema'`       | URI within the prefix                         |
+| `openapi.route.uri`        | `'openapi.json'` | URI within the prefix                         |
 | `openapi.route.name`       | `openapi.schema` | Route name                                    |
-| `openapi.route.prefix`     | `'openapi'`      | Group prefix                                  |
+| `openapi.route.prefix`     | `''`             | Group prefix                                  |
 | `openapi.route.middleware` | `['api']`        | Group middleware                              |
 
 For anything config cannot express — auth, domains, throttling, nested groups — turn the default off and place the
@@ -172,7 +167,7 @@ Route::middleware('auth:sanctum')
 keep configuring it. It also accepts an explicit URI and name:
 
 ```php
-ApiSchema::routes('openapi.json', 'docs.schema')->middleware('throttle:60,1');
+ApiSchema::routes('docs/openapi.json', 'docs.schema')->middleware('throttle:60,1');
 ```
 
 ## Validating the document
@@ -213,7 +208,7 @@ abstract class TestCase extends BaseTestCase
 Then assert against it:
 
 ```php
-$this->assertMatchesSchema($this->getJson('openapi/articles/42'));
+$this->assertMatchesSchema($this->getJson('articles/42'));
 ```
 
 The operation is resolved from the request automatically — you never name the path or method. Both the request and the
@@ -259,7 +254,7 @@ covered by any matching concrete status.
 | Key                     | Default                                                | Purpose                                |
 |-------------------------|--------------------------------------------------------|----------------------------------------|
 | `openapi.route.*`       | see above                                              | Where the schema endpoint lives        |
-| `openapi.openapi`       | `3.0.4` / `JSON:API` / `1.0.0` / `[{url: '/openapi'}]` | Document-level fields                  |
+| `openapi.openapi`       | `3.0.4` / `JSON:API` / `1.0.0` / `[{url: '/'}]`        | Document-level fields                  |
 | `openapi.coverage.path` | `storage/framework/cache/openapi-coverage.jsonl`       | Where validated responses are recorded |
 
 ## Known limitations
@@ -272,7 +267,7 @@ what catches it: requests to `/foo` resolve to no operation, and `/bar` is never
 only run `openapi:validate`, this class of drift is invisible.
 
 **Changing `openapi.route.uri` desyncs the built-in endpoint's own documentation.** `SchemaController` declares itself
-at `/schema` in a PHP attribute, which cannot read config. Move the route and the document still describes the old
+at `/openapi.json` in a PHP attribute, which cannot read config. Move the route and the document still describes the old
 path. This affects only this package's endpoint, and `assertMatchesSchema()` reports it as `no such operation`.
 
 **Response body validation is fail-fast.** A response violating three rules reports one. You fix them one round-trip

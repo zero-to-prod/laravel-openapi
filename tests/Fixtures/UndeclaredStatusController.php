@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
 use Illuminate\Http\JsonResponse;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Response;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
@@ -17,12 +13,12 @@ use ZeroToProd\LaravelOpenapi\ApiSchema;
 class UndeclaredStatusController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/undeclared-status' => [
-                PathItem::get => [
-                    Operation::responses => [
+                'get' => [
+                    'responses' => [
                         '200' => [
-                            Response::description => 'The only declared response.',
+                            'description' => 'The only declared response.',
                         ],
                     ],
                 ],

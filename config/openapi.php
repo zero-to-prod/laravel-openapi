@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-$prefix = 'openapi';
-
 return [
 
     /*
@@ -11,7 +9,9 @@ return [
     | Route Configuration
     |--------------------------------------------------------------------------
     |
-    | The route this package registers. Publish this file with `php artisan
+    | Where the document is served. By default that is `/openapi.json` at the
+    | root, which is independent of where your API itself lives — that is the
+    | `servers` setting below. Publish this file with `php artisan
     | vendor:publish --tag=openapi-config` to override these values.
     |
     | Set `enabled` to false to register nothing, then call ApiSchema::routes()
@@ -22,16 +22,16 @@ return [
     |         ->group(fn () => ApiSchema::routes());
     |
     | Changing `uri` moves the endpoint but does not move how it is documented:
-    | SchemaController declares itself at `/schema`. Keep them in step, or
-    | accept that the document describes the old path.
+    | SchemaController declares itself at `/openapi.json`. Keep them in step,
+    | or accept that the document describes the old path.
     |
     */
 
     'route' => [
         'enabled' => true,
-        'uri' => 'schema',
+        'uri' => 'openapi.json',
         'name' => 'openapi.schema',
-        'prefix' => $prefix,
+        'prefix' => '',
         'middleware' => ['api'],
     ],
 
@@ -40,12 +40,14 @@ return [
     | OpenAPI Document
     |--------------------------------------------------------------------------
     |
-    | The document-level fields of the schema served at `/schema`. The `paths`
-    | are generated from the #[ApiSchema] attributes on your controllers, so
-    | only the fields that cannot be derived are configured here.
+    | The document-level fields. The `paths` are generated from the #[ApiSchema]
+    | attributes on your controllers, so only the fields that cannot be derived
+    | are configured here.
     |
-    | Paths declared in those attributes omit the route prefix above, so it is
-    | published as the server URL instead.
+    | Paths declared in those attributes are resolved relative to the first
+    | server URL. With the default of `/` they are absolute, so declare the
+    | path the route actually serves. If every endpoint sits under a common
+    | base, set it here instead and drop it from the attributes.
     |
     */
 
@@ -56,7 +58,7 @@ return [
             'version' => '1.0.0',
         ],
         'servers' => [
-            ['url' => '/'.$prefix],
+            ['url' => '/'],
         ],
     ],
 

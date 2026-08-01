@@ -5,12 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Zerotoprod\DataModelOpenapi30\MediaType;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Response;
-use Zerotoprod\DataModelOpenapi30\Schema;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
@@ -21,24 +15,24 @@ class SchemaController
     }
 
     #[ApiSchema([
-        OpenApi::paths => [
-            '/schema' => [
-                PathItem::get => [
-                    Operation::operationId => 'getSchema',
-                    Operation::summary => 'Get the OpenAPI document for this API',
-                    Operation::description => 'Returns an OpenAPI 3.0 document generated from the #[ApiSchema] attributes declared on the registered routes.',
-                    Operation::responses => [
+        'paths' => [
+            '/openapi.json' => [
+                'get' => [
+                    'operationId' => 'getSchema',
+                    'summary' => 'Get the OpenAPI document for this API',
+                    'description' => 'Returns an OpenAPI 3.0 document generated from the #[ApiSchema] attributes declared on the registered routes.',
+                    'responses' => [
                         '200' => [
-                            Response::description => 'The generated OpenAPI document.',
-                            Response::content => [
+                            'description' => 'The generated OpenAPI document.',
+                            'content' => [
                                 'application/json' => [
-                                    MediaType::schema => [
-                                        Schema::type => 'object',
-                                        Schema::required => ['openapi', 'info', 'paths'],
-                                        Schema::properties => [
-                                            'openapi' => [Schema::type => 'string'],
-                                            'info' => [Schema::type => 'object'],
-                                            'paths' => [Schema::type => 'object'],
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'required' => ['openapi', 'info', 'paths'],
+                                        'properties' => [
+                                            'openapi' => ['type' => 'string'],
+                                            'info' => ['type' => 'object'],
+                                            'paths' => ['type' => 'object'],
                                         ],
                                     ],
                                 ],

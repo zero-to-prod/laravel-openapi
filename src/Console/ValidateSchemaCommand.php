@@ -10,7 +10,6 @@ use cebe\openapi\ReferenceContext;
 use cebe\openapi\spec\OpenApi as Specification;
 use Illuminate\Console\Command;
 use Throwable;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 class ValidateSchemaCommand extends Command
@@ -43,7 +42,7 @@ class ValidateSchemaCommand extends Command
         $errors = $this->validate($specification);
 
         if ($errors !== []) {
-            $this->components->error(sprintf('The generated document is not a valid OpenAPI %s document.', $document[OpenApi::openapi] ?? '3.0'));
+            $this->components->error(sprintf('The generated document is not a valid OpenAPI %s document.', $document['openapi'] ?? '3.0'));
             $this->components->bulletList($errors);
 
             return self::FAILURE;
@@ -51,8 +50,8 @@ class ValidateSchemaCommand extends Command
 
         $this->components->info(sprintf(
             'The generated document is a valid OpenAPI %s document (%d paths).',
-            $document[OpenApi::openapi] ?? '3.0',
-            count($document[OpenApi::paths] ?? []),
+            $document['openapi'] ?? '3.0',
+            count($document['paths'] ?? []),
         ));
 
         return self::SUCCESS;

@@ -14,7 +14,6 @@ use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 trait ValidatesSchema
 {
     /**
-     * @internal
      * Assert that a response, and the request that produced it, match what the
      * #[ApiSchema] attributes declare. Records the operation as exercised.
      */

@@ -5,12 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 
 use Illuminate\Http\JsonResponse;
-use Zerotoprod\DataModelOpenapi30\MediaType;
-use Zerotoprod\DataModelOpenapi30\OpenApi;
-use Zerotoprod\DataModelOpenapi30\Operation;
-use Zerotoprod\DataModelOpenapi30\PathItem;
-use Zerotoprod\DataModelOpenapi30\Response;
-use Zerotoprod\DataModelOpenapi30\Schema;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
@@ -20,20 +14,20 @@ use ZeroToProd\LaravelOpenapi\ApiSchema;
 class LyingController
 {
     #[ApiSchema([
-        OpenApi::paths => [
+        'paths' => [
             '/lying' => [
-                PathItem::get => [
-                    Operation::responses => [
+                'get' => [
+                    'responses' => [
                         '200' => [
-                            Response::description => 'Claims a string version and a required id.',
-                            Response::content => [
+                            'description' => 'Claims a string version and a required id.',
+                            'content' => [
                                 'application/vnd.api+json' => [
-                                    MediaType::schema => [
-                                        Schema::type => 'object',
-                                        Schema::required => ['version', 'id'],
-                                        Schema::properties => [
-                                            'version' => [Schema::type => 'string'],
-                                            'id' => [Schema::type => 'string'],
+                                    'schema' => [
+                                        'type' => 'object',
+                                        'required' => ['version', 'id'],
+                                        'properties' => [
+                                            'version' => ['type' => 'string'],
+                                            'id' => ['type' => 'string'],
                                         ],
                                     ],
                                 ],
