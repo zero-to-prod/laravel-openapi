@@ -15,7 +15,7 @@ class CoverageCommand extends Command
 
     protected $description = 'Report declared responses that no test exercised';
 
-    public function handle(SchemaGenerator $generator): int
+    public function handle(SchemaGenerator $SchemaGenerator): int
     {
         if ($this->option('reset')) {
             SchemaCoverage::purge();
@@ -27,7 +27,7 @@ class CoverageCommand extends Command
 
         SchemaCoverage::load();
 
-        $document = $generator->document();
+        $document = $SchemaGenerator->document();
         $declared = SchemaCoverage::declared($document);
         $missing = SchemaCoverage::missing($document);
 

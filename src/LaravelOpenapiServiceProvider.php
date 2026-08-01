@@ -24,7 +24,7 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/openapi.php', 'openapi');
 
-        $this->app->singleton(SchemaGenerator::class, static fn(Application $app): SchemaGenerator => new SchemaGenerator(
+        $this->app->singleton(SchemaGenerator::class, static fn (Application $app): SchemaGenerator => new SchemaGenerator(
             $app->make(Router::class),
             Config::array('openapi.openapi', []),
         ));
@@ -51,22 +51,22 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
         }
     }
 
-    protected function registerMcpServer(): void
+    private function registerMcpServer(): void
     {
         // @codeCoverageIgnoreStart
-        if (!class_exists(Mcp::class)) {
+        if (! class_exists(Mcp::class)) {
             return;
         }
         // @codeCoverageIgnoreEnd
 
-        if (!Config::boolean('openapi.mcp.enabled', true)) {
+        if (! Config::boolean('openapi.mcp.enabled', true)) {
             return;
         }
 
         Mcp::local(Config::string('openapi.mcp.handle', 'laravel-openapi'), Server::class);
     }
 
-    protected function registerRoutes(): void
+    private function registerRoutes(): void
     {
         Route::group([
             'prefix' => config('openapi.route.prefix'),

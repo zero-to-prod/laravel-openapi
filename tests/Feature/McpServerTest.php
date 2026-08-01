@@ -37,5 +37,5 @@ it('describes the tool so an agent knows when to call it', function (): void {
     $tool = new Readme;
 
     expect($tool->name())->toBe('readme')
-        ->and($tool->description())->toContain('#[ApiSchema]');
+        ->and($tool->description())->toContain('README');
 });

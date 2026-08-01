@@ -19,7 +19,7 @@ class SchemaValidator
     /** @var array<string, ValidatorBuilder> */
     private static array $builders = [];
 
-    public function __construct(private readonly SchemaGenerator $generator) {}
+    public function __construct(private readonly SchemaGenerator $SchemaGenerator) {}
 
     /** @throws JsonException|ValidationFailed */
     public function validate(Request $request, Response $response): OperationAddress
@@ -39,7 +39,7 @@ class SchemaValidator
     /** @throws JsonException */
     private function builder(): ValidatorBuilder
     {
-        $json = json_encode($this->generator->document(), JSON_THROW_ON_ERROR);
+        $json = json_encode($this->SchemaGenerator->document(), JSON_THROW_ON_ERROR);
 
         return self::$builders[hash('xxh128', $json)] ??= (new ValidatorBuilder)->fromJson($json);
     }

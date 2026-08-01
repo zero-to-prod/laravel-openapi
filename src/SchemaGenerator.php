@@ -43,7 +43,7 @@ readonly class SchemaGenerator
     }
 
     /** @return array{paths?: array<string, PathItem>, components?: Components} */
-    public function schemaFor(Route $route): array
+    private function schemaFor(Route $route): array
     {
         $controller = $route->getControllerClass();
 

@@ -203,7 +203,7 @@ valid while pointing at components that do not exist.
 This is the layer that turns the schema from a claim into a checked fact. Add the trait to your base `TestCase`:
 
 ```php
-use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
+use ZeroToProd\LaravelOpenapi\ValidatesSchema;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -353,12 +353,15 @@ gemini mcp add -s project -t stdio laravel-openapi php artisan mcp:start laravel
 
 <div class="overflow-auto">
 
-| Name       | Notes                                                                                                 |
-|------------|---------------------------------------------------------------------------------------------------------|
-| `readme`   | Read this README, covering the `#[ApiSchema]` attribute, both Artisan commands, and the test trait    |
-| `api`      | List the supported classes as PHP stubs: public properties and method signatures, internals excluded  |
+| Name     | Notes                                                                                                       |
+|----------|-------------------------------------------------------------------------------------------------------------|
+| `readme` | Read this README, covering the `#[ApiSchema]` attribute, both Artisan commands, and the test trait          |
+| `api`    | List the supported classes as PHP stubs: public members, plus a trait's protected ones, internals excluded    |
 
 </div>
+
+Neither tool takes arguments. `api` closes with a `Total public methods:` count, so an agent — or a reviewer reading a
+diff — can tell at a glance when a change grew or shrank the supported surface.
 
 ### Manually registering the MCP server
 
@@ -429,6 +432,31 @@ composer test
 The suite uses [Pest](https://pestphp.com) and [Testbench](https://packages.tools/testbench). `TestCase::withConfig()`
 rebuilds the application so the provider boots against new config — necessary because route registration happens
 during boot.
+
+`composer check` is the gate everything has to pass, and `composer fix` is the only script that rewrites your files:
+
+| Script                 | Runs                                                                          |
+|------------------------|-------------------------------------------------------------------------------|
+| `composer check`       | `lint`, `rector-lint`, `analyse`, `coverage`, `bc-check` — mutates nothing     |
+| `composer fix`         | `rector`, `format` — rewrites files in place                                  |
+| `composer coverage`    | Pest with `--min=100`; the suite is expected to stay at full coverage         |
+| `composer require-check` | ComposerRequireChecker against a `require-dev`-stripped tree                |
+| `composer bc-check`    | Roave BC check against the last SemVer tag; skips when the repo has no tags   |
+
+`bc-check` and `require-check` install their tooling into `build/` on first run, so both need network access once.
+
+The MCP server can be driven from the command line without attaching an agent, which is the quickest way to see what
+a tool actually returns after you change one:
+
+```bash
+composer mcp list          # tool names and descriptions
+composer mcp call readme   # a tool's output
+composer mcp call api
+```
+
+It speaks to `vendor/bin/testbench mcp:start`, so it exercises the same registration path a consumer's app uses. Set
+`MCP_HANDLE` if you have also changed `openapi.mcp.handle`; the two have to agree or the server is not registered
+under the name the script asks for.
 
 ## License
 

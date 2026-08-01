@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools;
 
 use FilesystemIterator;
+use JsonException;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionEnum;
+use ReflectionException;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
@@ -23,15 +25,13 @@ class Api extends Tool
 {
     protected string $name = 'api';
 
-    protected string $description = 'List the public API of the zero-to-prod/laravel-openapi package: every supported class rendered as a PHP stub with its public properties and method signatures. Classes under the Internal namespace or marked @internal are excluded.';
+    protected string $description = 'Lists the public API.';
 
     private const string PREAMBLE = <<<'MARKDOWN'
         # Public API
 
-        Every class below is part of the supported surface of the
-        zero-to-prod/laravel-openapi package and follows SemVer. Anything not
-        listed here is internal and may change in any release. Bodies are
-        omitted; only signatures are shown.
+        Every class below is part of the supported surface. 
+        Anything not listed here is internal and may change in any release.
         MARKDOWN;
 
     public function handle(): Response
@@ -40,8 +40,6 @@ class Api extends Tool
     }
 
     /**
-     * Render every public class under $directory as a PHP stub.
-     *
      * @param  string  $directory  Root of a PSR-4 source tree
      * @param  string  $namespace  PSR-4 prefix that $directory maps to
      */
@@ -59,9 +57,7 @@ class Api extends Tool
         return implode("\n\n", [self::PREAMBLE, ...$stubs, 'Total public methods: '.$total])."\n";
     }
 
-    /**
-     * @return list<ReflectionClass<object>>
-     */
+    /** @return list<ReflectionClass<object>> */
     private static function classes(string $directory, string $namespace): array
     {
         $names = [];
@@ -94,131 +90,144 @@ class Api extends Tool
         return $classes;
     }
 
-    /** @param  ReflectionClass<object>  $class */
-    private static function stub(ReflectionClass $class): string
+    /**
+     * @param  ReflectionClass<object>  $ReflectionClass
+     *
+     * @throws ReflectionException
+     */
+    private static function stub(ReflectionClass $ReflectionClass): string
     {
         $members = [
-            ...array_map(self::property(...), self::properties($class)),
-            ...array_map(self::method(...), self::methods($class)),
+            ...array_map(self::property(...), self::properties($ReflectionClass)),
+            ...array_map(self::method(...), self::methods($ReflectionClass)),
         ];
 
         return sprintf(
             "## %s\n\n%s```php\n%s\n{\n%s}\n```",
-            $class->getName(),
-            self::summary($class->getDocComment()),
-            self::declaration($class),
+            $ReflectionClass->getName(),
+            self::summary($ReflectionClass->getDocComment()),
+            self::declaration($ReflectionClass),
             implode('', array_map(static fn (string $member): string => self::indent($member)."\n", $members)),
         );
     }
 
-    /** @param  ReflectionClass<object>  $class */
-    private static function declaration(ReflectionClass $class): string
+    /**
+     * @param  ReflectionClass<object>  $ReflectionClass
+     *
+     * @throws ReflectionException
+     */
+    private static function declaration(ReflectionClass $ReflectionClass): string
     {
-        $parent = $class->getParentClass();
+        $parent = $ReflectionClass->getParentClass();
 
         return implode(' ', array_filter([
-            $class->isFinal() ? 'final' : '',
-            $class->isAbstract() && ! $class->isInterface() ? 'abstract' : '',
-            $class->isReadOnly() ? 'readonly' : '',
-            self::keyword($class),
-            self::shortName($class),
+            $ReflectionClass->isFinal() ? 'final' : '',
+            $ReflectionClass->isAbstract() && ! $ReflectionClass->isInterface() ? 'abstract' : '',
+            $ReflectionClass->isReadOnly() ? 'readonly' : '',
+            self::keyword($ReflectionClass),
+            self::shortName($ReflectionClass),
             $parent === false ? '' : 'extends '.$parent->getName(),
-            $class->getInterfaceNames() === [] ? '' : 'implements '.implode(', ', $class->getInterfaceNames()),
+            $ReflectionClass->getInterfaceNames() === [] ? '' : 'implements '.implode(', ', $ReflectionClass->getInterfaceNames()),
         ]));
     }
 
-    /** @param  ReflectionClass<object>  $class */
-    private static function keyword(ReflectionClass $class): string
+    /** @param  ReflectionClass<object>  $ReflectionClass */
+    private static function keyword(ReflectionClass $ReflectionClass): string
     {
         return match (true) {
-            $class->isInterface() => 'interface',
-            $class->isEnum() => 'enum',
-            $class->isTrait() => 'trait',
+            $ReflectionClass->isInterface() => 'interface',
+            $ReflectionClass->isEnum() => 'enum',
+            $ReflectionClass->isTrait() => 'trait',
             default => 'class',
         };
     }
 
     /**
-     * The short name, carrying the backing type when the class is an enum.
+     * @param  ReflectionClass<object>  $ReflectionClass
      *
-     * @param  ReflectionClass<object>  $class
+     * @throws ReflectionException
      */
-    private static function shortName(ReflectionClass $class): string
+    private static function shortName(ReflectionClass $ReflectionClass): string
     {
-        $name = $class->getName();
+        $name = $ReflectionClass->getName();
         $backing = is_a($name, UnitEnum::class, true) ? (new ReflectionEnum($name))->getBackingType() : null;
 
-        return $backing instanceof ReflectionType ? $class->getShortName().': '.$backing : $class->getShortName();
+        return $backing instanceof ReflectionType ? $ReflectionClass->getShortName().': '.$backing : $ReflectionClass->getShortName();
     }
 
     /**
-     * @param  ReflectionClass<object>  $class
+     * @param  ReflectionClass<object>  $ReflectionClass
      * @return list<ReflectionProperty>
      */
-    private static function properties(ReflectionClass $class): array
+    private static function properties(ReflectionClass $ReflectionClass): array
     {
         return array_values(array_filter(
-            $class->getProperties(ReflectionProperty::IS_PUBLIC),
-            static fn (ReflectionProperty $property): bool => $property->getDeclaringClass()->getName() === $class->getName()
+            $ReflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
+            static fn (ReflectionProperty $property): bool => $property->getDeclaringClass()->getName() === $ReflectionClass->getName()
                 && ! str_contains((string) $property->getDocComment(), '@internal'),
         ));
     }
 
     /**
-     * @param  ReflectionClass<object>  $class
+     * @param  ReflectionClass<object>  $ReflectionClass
      * @return list<ReflectionMethod>
      */
-    private static function methods(ReflectionClass $class): array
+    private static function methods(ReflectionClass $ReflectionClass): array
     {
+        $filter = $ReflectionClass->isTrait()
+            ? ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED
+            : ReflectionMethod::IS_PUBLIC;
+
         return array_values(array_filter(
-            $class->getMethods(ReflectionMethod::IS_PUBLIC),
-            static fn (ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === $class->getName()
+            $ReflectionClass->getMethods($filter),
+            static fn (ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === $ReflectionClass->getName()
                 && ! str_contains((string) $method->getDocComment(), '@internal'),
         ));
     }
 
-    private static function property(ReflectionProperty $property): string
+    private static function property(ReflectionProperty $ReflectionProperty): string
     {
-        return self::doc($property->getDocComment()).sprintf(
+        return self::doc($ReflectionProperty->getDocComment()).sprintf(
             'public %s%s%s$%s;',
-            $property->isStatic() ? 'static ' : '',
-            $property->isReadOnly() ? 'readonly ' : '',
-            self::type($property->getType()),
-            $property->getName(),
+            $ReflectionProperty->isStatic() ? 'static ' : '',
+            $ReflectionProperty->isReadOnly() ? 'readonly ' : '',
+            self::type($ReflectionProperty->getType()),
+            $ReflectionProperty->getName(),
         );
     }
 
-    private static function method(ReflectionMethod $method): string
+    private static function method(ReflectionMethod $ReflectionMethod): string
     {
-        $returnType = $method->getReturnType();
+        $returnType = $ReflectionMethod->getReturnType();
 
-        return self::doc($method->getDocComment()).sprintf(
-            'public %sfunction %s(%s)%s;',
-            $method->isStatic() ? 'static ' : '',
-            $method->getName(),
-            implode(', ', array_map(self::parameter(...), $method->getParameters())),
+        return self::doc($ReflectionMethod->getDocComment()).sprintf(
+            '%s %sfunction %s(%s)%s;',
+            $ReflectionMethod->isProtected() ? 'protected' : 'public',
+            $ReflectionMethod->isStatic() ? 'static ' : '',
+            $ReflectionMethod->getName(),
+            implode(', ', array_map(self::parameter(...), $ReflectionMethod->getParameters())),
             $returnType instanceof ReflectionType ? ': '.$returnType : '',
         );
     }
 
-    private static function parameter(ReflectionParameter $parameter): string
+    private static function parameter(ReflectionParameter $ReflectionParameter): string
     {
         return sprintf(
             '%s%s%s$%s%s',
-            self::type($parameter->getType()),
-            $parameter->isPassedByReference() ? '&' : '',
-            $parameter->isVariadic() ? '...' : '',
-            $parameter->getName(),
-            $parameter->isDefaultValueAvailable() ? ' = '.self::value($parameter->getDefaultValue()) : '',
+            self::type($ReflectionParameter->getType()),
+            $ReflectionParameter->isPassedByReference() ? '&' : '',
+            $ReflectionParameter->isVariadic() ? '...' : '',
+            $ReflectionParameter->getName(),
+            $ReflectionParameter->isDefaultValueAvailable() ? ' = '.self::value($ReflectionParameter->getDefaultValue()) : '',
         );
     }
 
-    /** Render a declared type with a trailing space, or nothing when untyped. */
-    private static function type(?ReflectionType $type): string
+    private static function type(?ReflectionType $ReflectionType): string
     {
-        return $type instanceof ReflectionType ? $type.' ' : '';
+        return $ReflectionType instanceof ReflectionType ? $ReflectionType.' ' : '';
     }
 
+    /** @throws JsonException */
     private static function value(mixed $value): string
     {
         return is_object($value)
@@ -226,7 +235,6 @@ class Api extends Tool
             : json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     }
 
-    /** Collapse a doc comment onto one line, kept above the member it documents. */
     private static function doc(string|false $comment): string
     {
         if ($comment === false) {
@@ -236,7 +244,6 @@ class Api extends Tool
         return preg_replace(['/\s*\n[ \t]*\*\/$/', '/\s*\n[ \t]*\*[ \t]?/'], [' */', ' '], $comment)."\n";
     }
 
-    /** The prose of a class doc comment, dropping every annotation after it. */
     private static function summary(string|false $comment): string
     {
         $summary = trim(explode(' @', self::doc($comment))[0], "/* \n");

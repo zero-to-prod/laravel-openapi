@@ -7,8 +7,8 @@ namespace ZeroToProd\LaravelOpenapi\Tests;
 use Illuminate\Contracts\Config\Repository;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
 use ZeroToProd\LaravelOpenapi\LaravelOpenapiServiceProvider;
+use ZeroToProd\LaravelOpenapi\ValidatesSchema;
 
 abstract class TestCase extends Orchestra
 {

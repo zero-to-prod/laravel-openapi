@@ -7,7 +7,7 @@ namespace ZeroToProd\LaravelOpenapi\Console;
 use cebe\openapi\exceptions\UnresolvableReferenceException;
 use cebe\openapi\Reader;
 use cebe\openapi\ReferenceContext;
-use cebe\openapi\spec\OpenApi as Specification;
+use cebe\openapi\spec\OpenApi;
 use Illuminate\Console\Command;
 use Throwable;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
@@ -19,10 +19,8 @@ class ValidateSchemaCommand extends Command
 
     protected $description = 'Validate the generated OpenAPI document against the OpenAPI specification';
 
-    public function handle(SchemaGenerator $generator): int
+    public function handle(SchemaGenerator $SchemaGenerator): int
     {
-        // Unreachable here: the suite installs the reader, so this guard only
-        // fires in a consumer that skipped the suggested package.
         // @codeCoverageIgnoreStart
         if (! class_exists(Reader::class)) {
             $this->components->error(
@@ -34,7 +32,7 @@ class ValidateSchemaCommand extends Command
         }
         // @codeCoverageIgnoreEnd
 
-        $document = $generator->document();
+        $document = $SchemaGenerator->document();
 
         try {
             $specification = Reader::readFromJson(json_encode($document, JSON_THROW_ON_ERROR));
@@ -66,18 +64,18 @@ class ValidateSchemaCommand extends Command
     }
 
     /** @return list<string> */
-    private function validate(Specification $specification): array
+    private function validate(OpenApi $OpenApi): array
     {
         $errors = [];
 
         try {
-            $specification->resolveReferences(new ReferenceContext($specification, '/'));
+            $OpenApi->resolveReferences(new ReferenceContext($OpenApi, '/'));
         } catch (UnresolvableReferenceException $e) {
             $errors[] = $e->getMessage();
         }
 
-        $specification->validate();
+        $OpenApi->validate();
 
-        return array_values([...$errors, ...$specification->getErrors()]);
+        return array_values([...$errors, ...$OpenApi->getErrors()]);
     }
 }

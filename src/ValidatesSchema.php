@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelOpenapi\Internal;
+namespace ZeroToProd\LaravelOpenapi;
 
 use Illuminate\Testing\TestResponse;
 use JsonException;
@@ -11,23 +11,25 @@ use League\OpenAPIValidation\PSR7\ValidatorBuilder;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
-use ZeroToProd\LaravelOpenapi\SchemaGenerator;
+use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
+use ZeroToProd\LaravelOpenapi\Internal\SchemaValidator;
 
-/** @internal */
+/**
+ * Asserts that responses match the generated OpenAPI document, and that every
+ * declared response was exercised. Add it to your base test case.
+ */
 trait ValidatesSchema
 {
     /**
      * @template TResponse of SymfonyResponse
      *
-     * @param  TestResponse<TResponse>  $response
+     * @param  TestResponse<TResponse>  $TestResponse
      * @return TestResponse<TResponse>
      *
      * @throws JsonException
      */
-    protected function assertMatchesSchema(TestResponse $response): TestResponse
+    protected function assertMatchesSchema(TestResponse $TestResponse): TestResponse
     {
-        // Unreachable here: the suite installs the validator, so this guard
-        // only fires in a consumer that skipped the suggested package.
         // @codeCoverageIgnoreStart
         if (! class_exists(ValidatorBuilder::class)) {
             Assert::fail(
@@ -37,19 +39,19 @@ trait ValidatesSchema
         }
         // @codeCoverageIgnoreEnd
 
-        if ($response->baseRequest === null) {
+        if ($TestResponse->baseRequest === null) {
             Assert::fail('The response was not produced by an HTTP test request, so no operation can be resolved.');
         }
 
         try {
-            app(SchemaValidator::class)->validate($response->baseRequest, $response->baseResponse);
+            app(SchemaValidator::class)->validate($TestResponse->baseRequest, $TestResponse->baseResponse);
         } catch (ValidationFailed $e) {
             Assert::fail($this->describeValidationFailure($e));
         }
 
         $this->addToAssertionCount(1);
 
-        return $response;
+        return $TestResponse;
     }
 
     protected function assertSchemaFullyExercised(): void
@@ -63,12 +65,12 @@ trait ValidatesSchema
         ));
     }
 
-    private function describeValidationFailure(Throwable $e): string
+    private function describeValidationFailure(Throwable $Throwable): string
     {
-        $lines = [$e->getMessage()];
+        $lines = [$Throwable->getMessage()];
 
-        while (($e = $e->getPrevious()) instanceof Throwable) {
-            $lines[] = 'caused by: '.$e->getMessage();
+        while (($Throwable = $Throwable->getPrevious()) instanceof Throwable) {
+            $lines[] = 'caused by: '.$Throwable->getMessage();
         }
 
         return implode(PHP_EOL.'  ', $lines);

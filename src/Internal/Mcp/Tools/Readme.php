@@ -10,14 +10,12 @@ use Laravel\Mcp\Server\Tool;
 /** @internal */
 class Readme extends Tool
 {
-    protected string $description = 'Read the zero-to-prod/laravel-openapi README, which documents the #[ApiSchema] attribute, the generated document, the openapi:validate and openapi:coverage commands, and the ValidatesSchema test trait.';
+    protected string $description = 'Returns the README';
 
     public function handle(): Response
     {
         $path = self::path();
 
-        // Unreachable here: the README ships with the package, so these guards
-        // only fire against a truncated or unreadable install.
         // @codeCoverageIgnoreStart
         if (! is_file($path)) {
             return Response::error(sprintf('The README could not be found at %s.', $path));

@@ -24,15 +24,23 @@ it('reports the packages own public classes', function (): void {
         ->assertSee('## ZeroToProd\LaravelOpenapi\SchemaGenerator')
         ->assertSee('readonly class SchemaGenerator')
         ->assertSee('/** @return array<string, mixed> */')
-        ->assertSee('public function document(): array;');
+        ->assertSee('public function document(): array;')
+        ->assertSee('## ZeroToProd\LaravelOpenapi\ValidatesSchema')
+        ->assertSee('trait ValidatesSchema')
+        ->assertSee('protected function assertMatchesSchema(Illuminate\Testing\TestResponse $TestResponse): Illuminate\Testing\TestResponse;')
+        ->assertSee('protected function assertSchemaFullyExercised(): void;');
 });
 
 it('omits internal classes from the packages own public api', function (): void {
     expect(Api::render(dirname(__DIR__, 2).'/src', 'ZeroToProd\\LaravelOpenapi'))
         ->not->toContain('SchemaController')
         ->not->toContain('ValidateSchemaCommand')
-        ->not->toContain('SchemaCoverage')
-        ->not->toContain('ValidatesSchema');
+        ->not->toContain('SchemaCoverage');
+});
+
+it('omits a traits private helpers, which are not part of its contract', function (): void {
+    expect(Api::render(dirname(__DIR__, 2).'/src', 'ZeroToProd\\LaravelOpenapi'))
+        ->not->toContain('describeValidationFailure');
 });
 
 it('describes the tool so an agent knows when to call it', function (): void {
