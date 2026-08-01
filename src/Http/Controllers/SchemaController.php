@@ -8,12 +8,8 @@ use Illuminate\Http\JsonResponse;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
-class SchemaController
+readonly class SchemaController
 {
-    public function __construct(private readonly SchemaGenerator $generator)
-    {
-    }
-
     #[ApiSchema([
         'paths' => [
             '/openapi.json' => [
@@ -43,8 +39,8 @@ class SchemaController
             ],
         ],
     ])]
-    public function __invoke(): JsonResponse
+    public function __invoke(SchemaGenerator $SchemaGenerator): JsonResponse
     {
-        return new JsonResponse($this->generator->document());
+        return new JsonResponse($SchemaGenerator->document());
     }
 }

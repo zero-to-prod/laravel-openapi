@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
+use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
 use ZeroToProd\LaravelOpenapi\LaravelOpenapiServiceProvider;
-use ZeroToProd\LaravelOpenapi\Testing\ValidatesSchema;
 
 abstract class TestCase extends Orchestra
 {

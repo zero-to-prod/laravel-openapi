@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
-use ZeroToProd\LaravelOpenapi\Testing\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\LyingController;
 
 beforeEach(function (): void {

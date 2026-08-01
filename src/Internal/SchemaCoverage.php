@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelOpenapi\Testing;
+namespace ZeroToProd\LaravelOpenapi\Internal;
 
+use JsonException;
 use RuntimeException;
 
 /**
@@ -18,7 +19,7 @@ use RuntimeException;
 class SchemaCoverage
 {
     /** The OpenAPI operations a Path Item may declare. */
-    private const OPERATIONS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+    private const array operations = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 
     /**
      * Exercised responses, as [path][method][status].
@@ -30,6 +31,8 @@ class SchemaCoverage
     /**
      * Only responses not already seen reach the disk, so a suite appends once
      * per distinct operation rather than once per assertion.
+     *
+     * @throws JsonException
      */
     public static function record(string $path, string $method, int $status): void
     {
@@ -121,7 +124,7 @@ class SchemaCoverage
                 continue;
             }
 
-            foreach (self::OPERATIONS as $method) {
+            foreach (self::operations as $method) {
                 if (!is_array($pathItem[$method] ?? null)) {
                     continue;
                 }
@@ -188,6 +191,8 @@ class SchemaCoverage
     /**
      * Appended as JSON Lines so concurrent workers can each add records
      * without coordinating.
+     *
+     * @throws JsonException
      */
     private static function persist(string $path, string $method, int $status): void
     {

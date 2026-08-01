@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelOpenapi\Testing;
+namespace ZeroToProd\LaravelOpenapi\Internal;
 
 use Illuminate\Testing\TestResponse;
+use JsonException;
 use League\OpenAPIValidation\PSR7\Exception\ValidationFailed;
 use League\OpenAPIValidation\PSR7\ValidatorBuilder;
 use PHPUnit\Framework\Assert;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
@@ -16,6 +18,13 @@ trait ValidatesSchema
     /**
      * Assert that a response, and the request that produced it, match what the
      * #[ApiSchema] attributes declare. Records the operation as exercised.
+     *
+     * @template TResponse of SymfonyResponse
+     *
+     * @param  TestResponse<TResponse>  $response
+     *
+     * @return TestResponse<TResponse>
+     * @throws JsonException
      */
     protected function assertMatchesSchema(TestResponse $response): TestResponse
     {
@@ -36,7 +45,9 @@ trait ValidatesSchema
             Assert::fail($this->describeValidationFailure($e));
         }
 
-        Assert::assertTrue(true);
+        // Validation passes by not throwing, so register the assertion
+        // explicitly rather than letting PHPUnit call the test risky.
+        $this->addToAssertionCount(1);
 
         return $response;
     }

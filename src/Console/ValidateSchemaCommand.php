@@ -33,8 +33,8 @@ class ValidateSchemaCommand extends Command
 
         try {
             $specification = Reader::readFromJson(json_encode($document, JSON_THROW_ON_ERROR));
-        } catch (Throwable $e) {
-            $this->components->error('The generated document could not be read: '.$e->getMessage());
+        } catch (Throwable $Throwable) {
+            $this->components->error('The generated document could not be read: '.$Throwable->getMessage());
 
             return self::FAILURE;
         }
@@ -57,12 +57,7 @@ class ValidateSchemaCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * Reference resolution stops at the first unresolvable reference, so it is
-     * reported alongside the errors collected from the specification itself.
-     *
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function validate(Specification $specification): array
     {
         $errors = [];

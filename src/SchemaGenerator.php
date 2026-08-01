@@ -8,34 +8,20 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use ReflectionMethod;
 
-/**
- * Builds an OpenAPI document from the #[ApiSchema] attributes declared on the
- * controller methods behind the application's registered routes.
- */
-class SchemaGenerator
+readonly class SchemaGenerator
 {
     /**
      * @param  array<string, mixed>  $document  Document-level fields: openapi, info, servers, ...
      */
-    public function __construct(
-        private readonly Router $router,
-        private readonly array $document = [],
-    ) {
-    }
+    public function __construct(private Router $router, private array $document = []) {}
 
-    /**
-     * The merged document. Validity is asserted by `openapi:validate` rather
-     * than on the way out, so an incomplete fragment does not break the
-     * endpoint that would tell you about it.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function document(): array
     {
         $paths = [];
         $components = [];
 
-        foreach ($this->router->getRoutes() as $route) {
+        foreach ($this->router->getRoutes()->getRoutes() as $route) {
             $schema = $this->schemaFor($route);
 
             $paths[] = $schema['paths'] ?? [];
@@ -54,11 +40,7 @@ class SchemaGenerator
         );
     }
 
-    /**
-     * The #[ApiSchema] fragment declared on the method handling the given route.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function schemaFor(Route $route): array
     {
         $controller = $route->getControllerClass();
@@ -67,8 +49,6 @@ class SchemaGenerator
             return [];
         }
 
-        // Invokable controllers are registered without an `@method` suffix, so
-        // Laravel reports the class itself as the action method.
         $method = $route->getActionMethod();
         $method = $method === $controller ? '__invoke' : $method;
 

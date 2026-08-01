@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace ZeroToProd\LaravelOpenapi\Testing;
+namespace ZeroToProd\LaravelOpenapi\Internal;
 
+use JsonException;
+use League\OpenAPIValidation\PSR7\Exception\ValidationFailed;
 use League\OpenAPIValidation\PSR7\OperationAddress;
 use League\OpenAPIValidation\PSR7\ValidatorBuilder;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
@@ -34,6 +36,8 @@ class SchemaValidator
     /**
      * Throws League\OpenAPIValidation\PSR7\Exception\ValidationFailed when the
      * request or response contradicts the document.
+     *
+     * @throws JsonException|ValidationFailed
      */
     public function validate(Request $request, Response $response): OperationAddress
     {
@@ -49,6 +53,9 @@ class SchemaValidator
         return $address;
     }
 
+    /**
+     * @throws JsonException
+     */
     private function builder(): ValidatorBuilder
     {
         $json = json_encode($this->generator->document(), JSON_THROW_ON_ERROR);

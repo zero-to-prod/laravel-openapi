@@ -197,7 +197,7 @@ valid while pointing at components that do not exist.
 This is the layer that turns the schema from a claim into a checked fact. Add the trait to your base `TestCase`:
 
 ```php
-use ZeroToProd\LaravelOpenapi\Testing\ValidatesSchema;
+use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
 
 abstract class TestCase extends BaseTestCase
 {

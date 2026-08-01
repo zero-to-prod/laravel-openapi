@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Console;
 
 use Illuminate\Console\Command;
+use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
-use ZeroToProd\LaravelOpenapi\Testing\SchemaCoverage;
 
 class CoverageCommand extends Command
 {
