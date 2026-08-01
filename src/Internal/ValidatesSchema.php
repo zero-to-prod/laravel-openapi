@@ -22,13 +22,13 @@ trait ValidatesSchema
      * @template TResponse of SymfonyResponse
      *
      * @param  TestResponse<TResponse>  $response
-     *
      * @return TestResponse<TResponse>
+     *
      * @throws JsonException
      */
     protected function assertMatchesSchema(TestResponse $response): TestResponse
     {
-        if (!class_exists(ValidatorBuilder::class)) {
+        if (! class_exists(ValidatorBuilder::class)) {
             Assert::fail(
                 'Matching responses against the schema requires league/openapi-psr7-validator. '
                 .'Install it with `composer require --dev league/openapi-psr7-validator symfony/psr-http-message-bridge nyholm/psr7`.'
@@ -79,7 +79,7 @@ trait ValidatesSchema
     {
         $lines = [$e->getMessage()];
 
-        while (($e = $e->getPrevious()) !== null) {
+        while (($e = $e->getPrevious()) instanceof Throwable) {
             $lines[] = 'caused by: '.$e->getMessage();
         }
 

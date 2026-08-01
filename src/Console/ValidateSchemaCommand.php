@@ -20,7 +20,7 @@ class ValidateSchemaCommand extends Command
 
     public function handle(SchemaGenerator $generator): int
     {
-        if (!class_exists(Reader::class)) {
+        if (! class_exists(Reader::class)) {
             $this->components->error(
                 'Validation requires devizzent/cebe-php-openapi. Install it with '
                 .'`composer require --dev devizzent/cebe-php-openapi`.'
@@ -40,18 +40,21 @@ class ValidateSchemaCommand extends Command
         }
 
         $errors = $this->validate($specification);
+        $version = is_string($document['openapi'] ?? null) ? $document['openapi'] : '3.0';
 
         if ($errors !== []) {
-            $this->components->error(sprintf('The generated document is not a valid OpenAPI %s document.', $document['openapi'] ?? '3.0'));
+            $this->components->error(sprintf('The generated document is not a valid OpenAPI %s document.', $version));
             $this->components->bulletList($errors);
 
             return self::FAILURE;
         }
 
+        $paths = is_array($document['paths'] ?? null) ? $document['paths'] : [];
+
         $this->components->info(sprintf(
             'The generated document is a valid OpenAPI %s document (%d paths).',
-            $document['openapi'] ?? '3.0',
-            count($document['paths'] ?? []),
+            $version,
+            count($paths),
         ));
 
         return self::SUCCESS;
@@ -70,6 +73,6 @@ class ValidateSchemaCommand extends Command
 
         $specification->validate();
 
-        return [...$errors, ...$specification->getErrors()];
+        return array_values([...$errors, ...$specification->getErrors()]);
     }
 }

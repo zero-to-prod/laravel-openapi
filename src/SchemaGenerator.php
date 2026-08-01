@@ -8,6 +8,10 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use ReflectionMethod;
 
+/**
+ * @phpstan-import-type PathItem from ApiSchema
+ * @phpstan-import-type Components from ApiSchema
+ */
 readonly class SchemaGenerator
 {
     /**
@@ -40,7 +44,7 @@ readonly class SchemaGenerator
         );
     }
 
-    /** @return array<string, mixed> */
+    /** @return array{paths?: array<string, PathItem>, components?: Components} */
     public function schemaFor(Route $route): array
     {
         $controller = $route->getControllerClass();
@@ -52,7 +56,7 @@ readonly class SchemaGenerator
         $method = $route->getActionMethod();
         $method = $method === $controller ? '__invoke' : $method;
 
-        if (!method_exists($controller, $method)) {
+        if (! method_exists($controller, $method)) {
             return [];
         }
 

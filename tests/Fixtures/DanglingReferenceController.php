@@ -28,7 +28,5 @@ class DanglingReferenceController
             ],
         ],
     ])]
-    public function __invoke(): void
-    {
-    }
+    public function __invoke(): void {}
 }

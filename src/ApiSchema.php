@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelOpenapi;
 
 use Attribute;
 use Illuminate\Routing\Route as Registered;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use ZeroToProd\LaravelOpenapi\Http\Controllers\SchemaController;
 
@@ -119,7 +120,6 @@ use ZeroToProd\LaravelOpenapi\Http\Controllers\SchemaController;
  * Response maps are keyed by status code. PHP coerces a numeric string key to
  * an int, so `'200' => [...]` arrives as `200 => [...]` and the key type has to
  * admit both — `default` and wildcards like `2XX` stay strings.
- *
  * @phpstan-type SecurityRequirement array<string, list<string>>
  * @phpstan-type Operation array{
  *     tags?: list<string>,
@@ -186,9 +186,7 @@ class ApiSchema
      *
      * @param  array{paths?: array<string, PathItem>, components?: Components}  $schema
      */
-    public function __construct(public readonly array $schema = [])
-    {
-    }
+    public function __construct(public readonly array $schema = []) {}
 
     /**
      * Register the package's routes with no prefix or middleware of their own,
@@ -200,8 +198,8 @@ class ApiSchema
     public static function routes(?string $uri = null, ?string $name = null): Registered
     {
         return Route::get(
-            $uri ?? config('openapi.route.uri', 'schema'),
+            $uri ?? Config::string('openapi.route.uri', 'schema'),
             SchemaController::class,
-        )->name($name ?? config('openapi.route.name', 'openapi.schema'));
+        )->name($name ?? Config::string('openapi.route.name', 'openapi.schema'));
     }
 }

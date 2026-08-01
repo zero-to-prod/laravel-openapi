@@ -29,9 +29,7 @@ class SchemaValidator
      */
     private static array $builders = [];
 
-    public function __construct(private readonly SchemaGenerator $generator)
-    {
-    }
+    public function __construct(private readonly SchemaGenerator $generator) {}
 
     /**
      * Throws League\OpenAPIValidation\PSR7\Exception\ValidationFailed when the

@@ -17,7 +17,5 @@ class MissingResponsesController
             ],
         ],
     ])]
-    public function __invoke(): void
-    {
-    }
+    public function __invoke(): void {}
 }

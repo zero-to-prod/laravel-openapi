@@ -24,7 +24,7 @@ it('documents routes declaring a #[ApiSchema] attribute', function (): void {
 });
 
 it('omits routes without a #[ApiSchema] attribute', function (): void {
-    Route::get('/undocumented', static fn () => null);
+    Route::get('/undocumented', static fn (): null => null);
 
     expect(array_keys(app(SchemaGenerator::class)->document()['paths']))->toBe(['/openapi.json']);
 });

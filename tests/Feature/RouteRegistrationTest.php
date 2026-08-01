@@ -3,13 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\AssertionFailedError;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 function openApiRoutes(): array
 {
     return collect(Route::getRoutes())
-        ->filter(static fn ($route) => $route->getName() !== null && str_starts_with((string) $route->getName(), 'openapi.'))
-        ->map(static fn ($route) => $route->getName().' => '.$route->uri())
+        ->filter(static fn ($route): bool => $route->getName() !== null && str_starts_with((string) $route->getName(), 'openapi.'))
+        ->map(static fn ($route): string => $route->getName().' => '.$route->uri())
         ->values()
         ->all();
 }
@@ -49,7 +50,7 @@ it('surfaces the document drift a configured uri causes', function (): void {
 
     try {
         $this->assertMatchesSchema($this->getJson('docs.json'));
-    } catch (PHPUnit\Framework\AssertionFailedError $e) {
+    } catch (AssertionFailedError $e) {
         $failure = $e->getMessage();
     }
 
@@ -74,7 +75,7 @@ it('honours a configured prefix', function (): void {
 it('lets an application place the route itself when disabled', function (): void {
     $this->withConfig(['openapi.route.enabled' => false]);
 
-    Route::prefix('internal')->group(static fn () => ApiSchema::routes());
+    Route::prefix('internal')->group(static fn (): Illuminate\Routing\Route => ApiSchema::routes());
 
     expect(openApiRoutes())->toBe(['openapi.schema => internal/openapi.json']);
 

@@ -35,7 +35,5 @@ class ZeroValuedController
             ],
         ],
     ])]
-    public function __invoke(): void
-    {
-    }
+    public function __invoke(): void {}
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
@@ -15,13 +17,14 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
     /**
      * Register any package services.
      */
+    #[\Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/openapi.php', 'openapi');
 
         $this->app->singleton(SchemaGenerator::class, static fn (Application $app): SchemaGenerator => new SchemaGenerator(
-            $app['router'],
-            $app['config']->get('openapi.openapi', []),
+            $app->make(Router::class),
+            Config::array('openapi.openapi', []),
         ));
     }
 
@@ -30,7 +33,7 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($this->app['config']->get('openapi.route.enabled', true)) {
+        if (Config::boolean('openapi.route.enabled', true)) {
             $this->registerRoutes();
         }
 

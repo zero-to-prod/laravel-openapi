@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelOpenapi\Tests;
 
+use Illuminate\Contracts\Config\Repository;
 use Orchestra\Testbench\TestCase as Orchestra;
 use ZeroToProd\LaravelOpenapi\Internal\ValidatesSchema;
 use ZeroToProd\LaravelOpenapi\LaravelOpenapiServiceProvider;
@@ -33,8 +34,10 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
+        $config = $app->make(Repository::class);
+
         foreach ($this->environmentConfig as $key => $value) {
-            $app['config']->set($key, $value);
+            $config->set($key, $value);
         }
     }
 

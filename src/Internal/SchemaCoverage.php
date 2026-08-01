@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ZeroToProd\LaravelOpenapi\Internal;
 
+use Illuminate\Support\Facades\Config;
 use JsonException;
 use RuntimeException;
 
@@ -54,7 +55,7 @@ class SchemaCoverage
      */
     public static function load(): void
     {
-        if (!is_file($file = self::path())) {
+        if (! is_file($file = self::path())) {
             return;
         }
 
@@ -62,7 +63,7 @@ class SchemaCoverage
             $record = json_decode($line, true);
 
             if (is_array($record) && isset($record['path'], $record['method'], $record['status'])) {
-                self::$exercised[$record['path']][strtolower((string)$record['method'])][(int)$record['status']] = true;
+                self::$exercised[$record['path']][strtolower((string) $record['method'])][(int) $record['status']] = true;
             }
         }
     }
@@ -71,13 +72,12 @@ class SchemaCoverage
      * Every response the document declares.
      *
      * @param  array<string, mixed>  $document
-     *
      * @return list<string>
      */
     public static function declared(array $document): array
     {
         $declared = array_map(
-            static fn(array $response): string => self::describe(...$response),
+            static fn (array $response): string => self::describe(...$response),
             self::responses($document)
         );
 
@@ -90,7 +90,6 @@ class SchemaCoverage
      * Declared responses that no test exercised.
      *
      * @param  array<string, mixed>  $document
-     *
      * @return list<string>
      */
     public static function missing(array $document): array
@@ -98,7 +97,7 @@ class SchemaCoverage
         $missing = [];
 
         foreach (self::responses($document) as [$path, $method, $status]) {
-            if (!self::covers($path, $method, $status)) {
+            if (! self::covers($path, $method, $status)) {
                 $missing[] = self::describe($path, $method, $status);
             }
         }
@@ -112,25 +111,37 @@ class SchemaCoverage
      * Every declared response, as [path, method, status].
      *
      * @param  array<string, mixed>  $document
-     *
      * @return list<array{0: string, 1: string, 2: string}>
      */
     private static function responses(array $document): array
     {
         $responses = [];
+        $paths = $document['paths'] ?? [];
 
-        foreach ($document['paths'] ?? [] as $path => $pathItem) {
-            if (!is_array($pathItem)) {
+        if (! is_array($paths)) {
+            return [];
+        }
+
+        foreach ($paths as $path => $pathItem) {
+            if (! is_array($pathItem)) {
                 continue;
             }
 
             foreach (self::operations as $method) {
-                if (!is_array($pathItem[$method] ?? null)) {
+                $operation = $pathItem[$method] ?? null;
+
+                if (! is_array($operation)) {
                     continue;
                 }
 
-                foreach (array_keys($pathItem[$method]['responses'] ?? []) as $status) {
-                    $responses[] = [(string)$path, $method, (string)$status];
+                $declared = $operation['responses'] ?? [];
+
+                if (! is_array($declared)) {
+                    continue;
+                }
+
+                foreach (array_keys($declared) as $status) {
+                    $responses[] = [(string) $path, $method, (string) $status];
                 }
             }
         }
@@ -148,7 +159,7 @@ class SchemaCoverage
         foreach (self::$exercised as $path => $methods) {
             foreach ($methods as $method => $statuses) {
                 foreach (array_keys($statuses) as $status) {
-                    $exercised[] = self::describe($path, $method, (string)$status);
+                    $exercised[] = self::describe($path, $method, (string) $status);
                 }
             }
         }
@@ -182,7 +193,7 @@ class SchemaCoverage
 
     public static function path(): string
     {
-        return (string)config(
+        return Config::string(
             'openapi.coverage.path',
             storage_path('framework/cache/openapi-coverage.jsonl')
         );
@@ -199,14 +210,14 @@ class SchemaCoverage
         $file = self::path();
         $directory = dirname($file);
 
-        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
             throw new RuntimeException(sprintf('Unable to create the coverage directory [%s].', $directory));
         }
 
         $line = json_encode(
-                ['path' => $path, 'method' => $method, 'status' => $status],
-                JSON_THROW_ON_ERROR
-            ).PHP_EOL;
+            ['path' => $path, 'method' => $method, 'status' => $status],
+            JSON_THROW_ON_ERROR
+        ).PHP_EOL;
 
         if (file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
             throw new RuntimeException(sprintf('Unable to write coverage to [%s].', $file));
@@ -219,12 +230,12 @@ class SchemaCoverage
     private static function covers(string $path, string $method, string $declared): bool
     {
         foreach (array_keys(self::$exercised[$path][$method] ?? []) as $status) {
-            if ($declared === 'default' || $declared === (string)$status) {
+            if ($declared === 'default' || $declared === (string) $status) {
                 return true;
             }
 
             if (preg_match('/^([1-5])XX$/i', $declared, $matches) === 1
-                && intdiv($status, 100) === (int)$matches[1]
+                && intdiv($status, 100) === (int) $matches[1]
             ) {
                 return true;
             }
