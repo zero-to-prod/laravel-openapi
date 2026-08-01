@@ -87,7 +87,10 @@ jobs:
         run: composer update --prefer-dist --no-interaction --no-progress
 
       - name: Show resolved versions
-        run: composer show laravel/framework orchestra/testbench pestphp/pest | grep -E '^(name|versions)'
+        # `composer show` takes at most one package argument, so filter the
+        # full installed list instead. Never fail the job on a diagnostic.
+        run: |
+          composer show | grep -E '^(laravel/framework|orchestra/testbench|pestphp/pest|symfony/psr-http-message-bridge)\s' || true
 
       - name: Run tests
         run: composer test
