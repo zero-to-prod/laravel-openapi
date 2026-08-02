@@ -10,7 +10,7 @@ it('serves the document-level fields from config', function (): void {
     $this->getJson('openapi.json')
         ->assertOk()
         ->assertJsonPath('openapi', '3.0.4')
-        ->assertJsonPath('info.title', 'JSON:API')
+        ->assertJsonPath('info.title', 'Laravel')
         ->assertJsonPath('servers.0.url', '/');
 });
 

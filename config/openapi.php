@@ -42,7 +42,9 @@ return [
     |
     | The document-level fields. The `paths` are generated from the #[ApiSchema]
     | attributes on your controllers, so only the fields that cannot be derived
-    | are configured here.
+    | are configured here. The title defaults to `APP_NAME`, read from the
+    | environment rather than `config('app.name')` so this file does not depend
+    | on the order config files are loaded in.
     |
     | Paths declared in those attributes are resolved relative to the first
     | server URL. With the default of `/` they are absolute, so declare the
@@ -54,7 +56,7 @@ return [
     'openapi' => [
         'openapi' => '3.0.4',
         'info' => [
-            'title' => 'JSON:API',
+            'title' => env('APP_NAME', 'Laravel'),
             'version' => '1.0.0',
         ],
         'servers' => [
