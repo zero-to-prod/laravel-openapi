@@ -2,11 +2,11 @@
 
 Laravel OpenAPI generates an [OpenAPI](https://www.openapis.org/) document to help users build confidently with your API.
 
-The package uses the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.4.html) as part of the package API itself.
+The package uses the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.4.html) as part of the package API itself. There is no
+second dialect to learn: what you write in the attribute is what lands in the document.
 
-This is especially useful for AI agents because many models are trained to understand the OpenAPI specification.
-
-They can build with this package effectively without specialized knowledge or skills.
+This is especially useful for AI agents, because many models are already trained on the OpenAPI specification. They can build with this
+package effectively without specialized knowledge or skills.
 
 ## Requirements
 
@@ -29,17 +29,16 @@ You may want to publish the configuration file to override or customize the beha
 php artisan vendor:publish --tag=openapi-config
 ```
 
-### Agent Development
+### Agent development
 
 This project ships with an [MCP server](#mcp-server) to aid in agent development.
 
 ## Quick start
 
-Annotate a controller method.
+Annotate a controller method. Whatever you write here is placed in the document.
 
-Whatever you write here is placed in the document.
-
-Use the [validation](#validation) tools to prove the schema conforms to the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.4.html).
+Use the [validation](#validation) tools to prove the document conforms to the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.4.html)
+and that your application actually behaves the way it claims.
 
 ```php
 use Illuminate\Http\JsonResponse;
@@ -122,7 +121,12 @@ class ShowArticleController
 }
 ```
 
-The merged document is served verbatim. Use `openapi:validate` to validate before deployment.
+The fragment on every registered route is merged into the document-level fields from `config/openapi.php`, paths are sorted, and the
+result is served verbatim. Nothing is rewritten or checked on the way out, so run [`openapi:validate`](#schema-validation) before you
+deploy.
+
+Paths in the attribute are resolved relative to the first entry in `openapi.servers`. With the default of `/` they are absolute, so
+declare the path the route actually serves.
 
 ## Routing
 
@@ -150,34 +154,41 @@ Route::middleware('auth:sanctum')
     ->group(fn () => ApiSchema::routes());
 ```
 
-Override the the route:
+Override the route:
 
 ```php
 ApiSchema::routes('docs/openapi.json', 'docs.schema')->middleware('throttle:60,1');
 ```
 
+Moving the endpoint does not move how it is documented: the document always describes this route as `/openapi.json`. Keep the two in
+step, or accept that the document describes the old path.
+
 ## Validation
 
-This package ships with optional validation tools to verify the schema and behavior
+This package ships with optional validation tools to verify both the document and the behavior behind it.
 
-```bash
-composer require --dev devizzent/cebe-php-openapi
-composer require --dev league/openapi-psr7-validator symfony/psr-http-message-bridge nyholm/psr7
-```
-
-### Schema Validation
+### Schema validation
 
 This command builds the document and validates it against the OpenAPI specification.
 
-If it fails the command will return any errors, otherwise it returns a `0` making it useful for build pipelines.
+```bash
+composer require --dev devizzent/cebe-php-openapi
+```
 
 ```bash
 php artisan openapi:validate
 ```
 
-### Behavior Validation
+On failure it lists the specification errors and exits non-zero; on success it exits `0`, which makes it useful in a build pipeline.
 
-If you want to prove the schema matches your applications behavior, this package comes with built-in assertions that you can use in your tests.
+### Behavior validation
+
+If you want to prove the document matches your application's behavior, this package comes with built-in assertions that you can use in
+your tests.
+
+```bash
+composer require --dev league/openapi-psr7-validator symfony/psr-http-message-bridge nyholm/psr7
+```
 
 ```php
 use ZeroToProd\LaravelOpenapi\ValidatesSchema;
@@ -194,17 +205,15 @@ Then assert against it:
 $this->assertMatchesSchema($this->getJson('articles/42'));
 ```
 
-The operation is resolved from the request automatically.
-
-Both the request and the response are checked.
+The operation is resolved from the request automatically, and both the request and the response are checked. The response is returned,
+so the assertion can be chained onto an existing call.
 
 ## Coverage
 
-Make sure every defined path method and status are covered by your tests.
+A declared response that no test ever exercises is a claim nothing checks. Every call to `assertMatchesSchema()` records the
+`(path, method, status)` it validated, so you can find the ones you missed.
 
-Use `assertMatchesSchema()` to record every`(path, method, status)` for validation.
-
-Example:
+Reset the record before the suite runs, then report on it afterwards:
 
 ```bash
 php artisan openapi:coverage --reset && vendor/bin/pest && php artisan openapi:coverage
@@ -216,9 +225,19 @@ ERROR  1 of 2 declared responses were never exercised.
   ⇂ GET /articles/{id} -> 404
 ```
 
+The command exits non-zero while anything is missing, so it gates a build the same way `openapi:validate` does.
+
+Records are appended to `storage/framework/cache/openapi-coverage.jsonl`, which is append-only JSON Lines so parallel test workers can
+share it. Change the location with `openapi.coverage.path`.
+
+To assert the same thing from inside the suite, call `assertSchemaFullyExercised()` from a test that runs last. It only sees what the
+current process recorded, so prefer the command when your suite runs in parallel.
+
 ## MCP server
 
-Install the dependencies via composer.
+The package registers an MCP server so coding agents can read how it is meant to be used.
+
+Install the dependency via composer.
 
 ```bash
 composer require --dev laravel/mcp
@@ -238,7 +257,9 @@ codex mcp add laravel-openapi -- php "artisan" "mcp:start" "laravel-openapi"
 gemini mcp add -s project -t stdio laravel-openapi php artisan mcp:start laravel-openapi
 ```
 
-```text
+For an agent configured by file, add the server directly:
+
+```json
 {
     "mcpServers": {
         "laravel-openapi": {
