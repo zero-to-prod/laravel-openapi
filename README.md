@@ -4,7 +4,8 @@ Laravel OpenAPI generates an [OpenAPI](https://www.openapis.org/) document to he
 
 The package uses the OpenAPI specification as part of the API itself.
 
-This is especially useful for AI agents because the specification is used in their training data and requires no special knowledge or skill to use effectively.
+This is especially useful for AI agents because many models are trained to understand the OpenAPI specification. 
+They can use your API effectively without specialized knowledge or skills.
 
 ## Requirements
 
