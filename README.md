@@ -1,10 +1,10 @@
 # Laravel OpenAPI
 
-Laravel OpenAPI generates an [OpenAPI](https://www.openapis.org/) that helps users build confidently with your API.
+Laravel OpenAPI generates an [OpenAPI](https://www.openapis.org/) document to help users build confidently with your API.
 
-The package makes the OpenAPI specification part of the API itself.
+The package uses the OpenAPI specification as part of the API itself.
 
-This is especially useful for AI agents because no specialized knowledge or skills are required.
+This is especially useful for AI agents because the specification is used in their training data and requires no special knowledge or skill to use effectively.
 
 ## Requirements
 
