@@ -23,7 +23,7 @@ composer require zero-to-prod/laravel-openapi
 
 ### Configuration
 
-You may want to publish Laravel OpenAPIs configuration file to override or customize the behavior.
+You may want to publish the configuration file to override or customize the behavior.
 
 ```bash
 php artisan vendor:publish --tag=openapi-config
@@ -39,7 +39,7 @@ Annotate a controller method.
 
 Whatever you write here is placed in the document.
 
-Use the [validation](#validation) tools to prove correctness.
+Use the [validation](#validation) tools to prove the schema conforms to the [OpenAPI specification](https://spec.openapis.org/oas/v3.0.4.html).
 
 ```php
 use Illuminate\Http\JsonResponse;
