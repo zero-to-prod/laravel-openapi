@@ -6,6 +6,7 @@ namespace ZeroToProd\LaravelOpenapi;
 
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
+use ReflectionAttribute;
 use ReflectionMethod;
 
 /**
@@ -14,8 +15,16 @@ use ReflectionMethod;
  */
 readonly class SchemaGenerator
 {
-    /** @param  array<string, mixed>  $document  Document-level fields: openapi, info, servers, ... */
-    public function __construct(private Router $router, private array $document = []) {}
+    /**
+     * @param  Router  $router  The application router; supply app(Router::class).
+     * @param  array<string, mixed>  $document  Document-level OpenAPI fields merged into every response: openapi, info, servers, security, tags, externalDocs.
+     * @param  int  $attributeFlags  Passed to ReflectionMethod::getAttributes(). Default IS_INSTANCEOF matches ApiSchema and any subclass; pass 0 for exact-class-only matching.
+     */
+    public function __construct(
+        private Router $router,
+        private array $document = [],
+        private int $attributeFlags = ReflectionAttribute::IS_INSTANCEOF,
+    ) {}
 
     /** @return array<string, mixed> */
     public function document(): array
@@ -58,7 +67,7 @@ readonly class SchemaGenerator
             return [];
         }
 
-        $attribute = (new ReflectionMethod($controller, $method))->getAttributes(ApiSchema::class)[0] ?? null;
+        $attribute = (new ReflectionMethod($controller, $method))->getAttributes(ApiSchema::class, $this->attributeFlags)[0] ?? null;
 
         return $attribute?->newInstance()->schema ?? [];
     }
