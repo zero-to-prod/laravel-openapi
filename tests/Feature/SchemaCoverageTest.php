@@ -25,28 +25,28 @@ function withoutWarnings(Closure $callback): Closure
 }
 
 it('ignores a document whose paths are not a map', function (): void {
-    expect(SchemaCoverage::declared(['paths' => 'not-a-map']))->toBe([])
-        ->and(SchemaCoverage::missing(['paths' => 'not-a-map']))->toBe([]);
+    expect(SchemaCoverage::declared(['paths' => 'not-a-map']))->toBeEmpty()
+        ->and(SchemaCoverage::missing(['paths' => 'not-a-map']))->toBeEmpty();
 });
 
 it('skips a path item that is not a map', function (): void {
     $document = ['paths' => ['/x' => 'not-a-map']];
 
-    expect(SchemaCoverage::declared($document))->toBe([])
-        ->and(SchemaCoverage::missing($document))->toBe([]);
+    expect(SchemaCoverage::declared($document))->toBeEmpty()
+        ->and(SchemaCoverage::missing($document))->toBeEmpty();
 });
 
 it('skips an operation whose responses are not a map', function (): void {
     $document = ['paths' => ['/x' => ['get' => ['responses' => 'not-a-map']]]];
 
-    expect(SchemaCoverage::declared($document))->toBe([])
-        ->and(SchemaCoverage::missing($document))->toBe([]);
+    expect(SchemaCoverage::declared($document))->toBeEmpty()
+        ->and(SchemaCoverage::missing($document))->toBeEmpty();
 });
 
 it('ignores an operation that is not a map', function (): void {
     $document = ['paths' => ['/x' => ['get' => 'not-a-map']]];
 
-    expect(SchemaCoverage::declared($document))->toBe([]);
+    expect(SchemaCoverage::declared($document))->toBeEmpty();
 });
 
 it('fails when the coverage directory cannot be created', function (): void {

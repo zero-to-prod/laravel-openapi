@@ -11,6 +11,13 @@ use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ShowArticleController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndocumentedController;
 
 beforeEach(function (): void {
+    // Tells the Testbench skeleton's bootstrap where `vendor/` and
+    // `testbench.yaml` live, so the process the tool spawns can boot the
+    // package. `putenv()` alone would not reach the child: Symfony\Process
+    // keeps only the `getenv()` values whose keys already exist in $_SERVER,
+    // then merges $_ENV over the top.
+    $_ENV['TESTBENCH_WORKING_PATH'] = dirname(__DIR__, 2);
+
     config(['openapi.coverage.path' => sys_get_temp_dir().'/openapi-status-test/coverage.jsonl']);
     SchemaCoverage::purge();
 });

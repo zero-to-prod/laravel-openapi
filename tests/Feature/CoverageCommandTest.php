@@ -91,5 +91,5 @@ it('discards recorded coverage on --reset', function (): void {
 
     expect($status)->toBe(0)
         ->and($output)->toContain('Discarded recorded coverage')
-        ->and(is_file(SchemaCoverage::path()))->toBeFalse();
+        ->and(SchemaCoverage::path())->not->toBeFile();
 });

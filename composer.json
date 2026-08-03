@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "illuminate/console": "^12.0|^13.0",
         "illuminate/http": "^12.0|^13.0",
         "illuminate/routing": "^12.0|^13.0",
@@ -17,7 +17,8 @@
         "league/openapi-psr7-validator": "^0.24.0",
         "nyholm/psr7": "^1.8",
         "orchestra/testbench": "^10.0|^11.0",
-        "pestphp/pest": "^3.0|^4.0",
+        "pestphp/pest": "^5.0",
+        "pestphp/pest-plugin-rector": "^5.0",
         "phpstan/phpstan": "^2.2",
         "rector/rector": "^2.5",
         "symfony/psr-http-message-bridge": "^7.4|^8.1"

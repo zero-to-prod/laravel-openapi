@@ -24,7 +24,7 @@ it('registers the route by default', function (): void {
 it('registers nothing when the route is disabled', function (): void {
     $this->withConfig(['openapi.route.enabled' => false]);
 
-    expect(openApiRoutes())->toBe([]);
+    expect(openApiRoutes())->toBeEmpty();
 
     $this->getJson('openapi.json')->assertNotFound();
 });
@@ -87,7 +87,7 @@ it('accepts an explicit uri and name from the caller', function (): void {
 
     ApiSchema::routes('docs/openapi.json', 'docs.schema');
 
-    expect(openApiRoutes())->toBe([])
+    expect(openApiRoutes())->toBeEmpty()
         ->and(route('docs.schema', absolute: false))->toBe('/docs/openapi.json');
 
     $this->getJson('docs/openapi.json')->assertOk();

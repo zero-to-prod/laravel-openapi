@@ -54,12 +54,12 @@ it('fails when a route responds with an undeclared status code', function (): vo
 });
 
 it('records an operation as exercised once its response is validated', function (): void {
-    expect(SchemaCoverage::exercised())->toBe([]);
+    expect(SchemaCoverage::exercised())->toBeEmpty();
 
     $this->assertMatchesSchema($this->getJson('openapi.json'));
 
     expect(SchemaCoverage::exercised())->toBe(['GET /openapi.json -> 200'])
-        ->and(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))->toBe([]);
+        ->and(SchemaCoverage::missing(app(SchemaGenerator::class)->document()))->toBeEmpty();
 });
 
 it('reports declared responses that no test exercised', function (): void {

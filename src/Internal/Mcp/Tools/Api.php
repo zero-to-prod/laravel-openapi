@@ -150,7 +150,7 @@ class Api extends Tool
     private static function shortName(ReflectionClass $ReflectionClass): string
     {
         $name = $ReflectionClass->getName();
-        $backing = is_a($name, UnitEnum::class, true) ? (new ReflectionEnum($name))->getBackingType() : null;
+        $backing = is_a($name, UnitEnum::class, true) ? new ReflectionEnum($name)->getBackingType() : null;
 
         return $backing instanceof ReflectionType ? $ReflectionClass->getShortName().': '.$backing : $ReflectionClass->getShortName();
     }
