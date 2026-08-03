@@ -7,6 +7,9 @@ use Laravel\Mcp\Server\Testing\TestResponse;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Status;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ApiRoute;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ConstantlessController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ConstantlessSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ShowArticleController;
@@ -161,7 +164,38 @@ it('names the routes that declare no schema, and where to add the attribute', fu
     ]);
 });
 
-it('names the project-local subclass, its file and a call site to read', function (): void {
+it('reports the middleware a route runs, which is what decides the statuses it can return', function (): void {
+    withoutFreshProcess();
+    Route::middleware(['auth:sanctum', 'App\Http\Middleware\CheckForAnyAbility:user'])
+        ->post('articles/{id}/publish', UndocumentedController::class);
+
+    status()->assertSee([
+        'POST /articles/{id}/publish — '.UndocumentedController::class."::__invoke\n"
+            .'  middleware: auth:sanctum, CheckForAnyAbility:user',
+        'Middleware decides which statuses a route can return.',
+        "->withToken('any-value')",
+    ]);
+});
+
+it('says nothing about middleware for a route that runs none', function (): void {
+    withoutFreshProcess();
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()
+        ->assertSee('POST /articles/{id}/publish — '.UndocumentedController::class.'::__invoke')
+        ->assertDontSee(['middleware:', 'Middleware decides which statuses']);
+});
+
+it('falls back rather than half-trusting an inventory whose middleware is not a list of strings', function (string $middleware): void {
+    withArtisan(sprintf(
+        '<?php echo json_encode([["uri" => "/x", "methods" => ["GET"], "action" => "A::b", "middleware" => %s, "documented" => false, "schema" => []]]);',
+        $middleware,
+    ));
+
+    status()->assertSee('Could not read the application from a fresh process');
+})->with(['[7]', '"auth"']);
+
+it('names the project-local subclass, its file and the constructor it has to be given', function (): void {
     withRepositoryAsBasePath();
     Route::get('enum-constructed', EnumConstructedController::class);
     Route::post('articles/{id}/publish', UndocumentedController::class);
@@ -170,8 +204,76 @@ it('names the project-local subclass, its file and a call site to read', functio
         '## Local convention',
         EnumConstructedSchema::class.' is the attribute this project uses',
         'on 1 of 2 documented routes, declared at tests/Fixtures/EnumConstructedSchema.php.',
-        'Read that file and one call site — '.EnumConstructedController::class.'::__invoke — first.',
+        '__construct('.ApiRoute::class.' $ApiRoute)',
     ]);
+});
+
+it('says where the fragments live rather than sending the agent to read the class', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()
+        ->assertSee([
+            'It takes no OpenAPI fragment of its own: the fragments live in const paths, which the constructor merges.',
+            'do not read the whole class, it carries every route documented so far',
+        ])
+        ->assertDontSee('Read that file and one call site');
+});
+
+it('prints one existing entry to copy, as the PHP the class holds it in', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()->assertSee([
+        'One entry to copy, the one '.EnumConstructedController::class.'::__invoke declares:',
+        "    '/enum-constructed' => [\n        'get' => [\n            'operationId' => 'getEnumConstructed',\n        ],\n    ],",
+    ]);
+});
+
+it('prefers an entry sharing a method with the work still to do, over the first one it saw', function (): void {
+    withInventory([
+        ['uri' => '/read', 'methods' => ['GET'], 'action' => 'A::read', 'middleware' => [], 'documented' => true, 'attribute' => EnumConstructedSchema::class, 'schema' => ['paths' => ['/read' => ['get' => ['operationId' => 'read']]]]],
+        ['uri' => '/write', 'methods' => ['POST'], 'action' => 'A::write', 'middleware' => [], 'documented' => true, 'attribute' => EnumConstructedSchema::class, 'schema' => ['paths' => ['/write' => ['post' => ['operationId' => 'write']]]]],
+        ['uri' => '/new', 'methods' => ['POST'], 'action' => 'A::new', 'middleware' => [], 'documented' => false, 'attribute' => null, 'schema' => []],
+    ]);
+
+    status()
+        ->assertSee(['One entry to copy, the one A::write declares:', "'operationId' => 'write',"])
+        ->assertDontSee("'operationId' => 'read',");
+});
+
+it('spends nothing on an entry to copy when there is nothing left to document', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('enum-constructed', EnumConstructedController::class);
+
+    status()
+        ->assertSee('It takes no OpenAPI fragment of its own')
+        ->assertDontSee('One entry to copy');
+});
+
+it('points at the call site when the subclass keeps its fragments in no constant', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('constantless', ConstantlessController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()->assertSee([
+        ConstantlessSchema::class.' is the attribute this project uses',
+        'Follow it, not the generic shape in `example`. Read that file and one call site — '.ConstantlessController::class.'::__invoke — first.',
+        'One entry to copy, the one '.ConstantlessController::class.'::__invoke declares:',
+    ]);
+});
+
+it('offers no entry to copy when the inventory carries no paths for the convention', function (): void {
+    withInventory([
+        ['uri' => '/x', 'methods' => ['GET'], 'action' => 'A::b', 'middleware' => [], 'documented' => true, 'attribute' => EnumConstructedSchema::class, 'schema' => []],
+        ['uri' => '/y', 'methods' => ['POST'], 'action' => 'A::c', 'middleware' => [], 'documented' => false, 'attribute' => null, 'schema' => []],
+    ]);
+
+    status()
+        ->assertSee('the fragments live in const paths')
+        ->assertDontSee('One entry to copy');
 });
 
 it('tells the agent to add the subclass, not the package attribute it would find in `example`', function (): void {
@@ -273,7 +375,6 @@ it('counts a route carrying the attribute as documented', function (): void {
     withoutFreshProcess();
     Route::get('articles/{id}', ShowArticleController::class);
 
-    // The package's own /openapi.json route is documented too, hence two.
     status()
         ->assertSee('2 documented, 0 undocumented')
         ->assertDontSee('## Undocumented routes');

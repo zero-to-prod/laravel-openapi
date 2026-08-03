@@ -48,8 +48,9 @@
         }
     },
     "scripts": {
-        "test": "pest",
-        "coverage": "pest --coverage --min=100",
+        "test-fresh": "pest --tia --fresh",
+        "test": "pest --tia",
+        "coverage": "pest --tia --fresh --coverage --min=100",
         "analyse": "phpstan analyse",
         "format": "pint",
         "lint": "pint --test",

@@ -7,4 +7,5 @@ namespace ZeroToProd\LaravelOpenapi\Tests\Fixtures;
 enum ApiRoute: string
 {
     case enumConstructed = '/enum-constructed';
+    case constantless = '/constantless';
 }

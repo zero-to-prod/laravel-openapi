@@ -18,11 +18,18 @@ use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 /**
  * @internal
  *
- * @phpstan-type Entry array{uri: string, methods: list<string>, action: string|null, documented: bool, attribute: string|null, schema: array<string, mixed>}
+ * @phpstan-type Entry array{uri: string, methods: list<string>, action: string|null, middleware: list<string>, documented: bool, attribute: string|null, schema: array<string, mixed>}
  */
 class Status extends Tool
 {
     private const int TIMEOUT = 30;
+
+    private const string MIDDLEWARE = <<<'MARKDOWN'
+        Middleware decides which statuses a route can return. An authenticating one
+        means declaring `security`, and the failures it produces — 401, and 403 where
+        an ability is required — and a test that sends `->withToken('any-value')`,
+        without which neither can be exercised.
+        MARKDOWN;
 
     private const string STALE = <<<'MARKDOWN'
         !! Could not read the application from a fresh process, so what follows
@@ -33,7 +40,7 @@ class Status extends Tool
 
     protected string $name = 'status';
 
-    protected string $description = 'Routes that declare no schema, and declared responses no test exercised. Call it to plan the work, and again to confirm it is done.';
+    protected string $description = 'Routes that declare no schema, with the middleware each runs, this project\'s own attribute convention and one entry to copy; plus declared responses no test exercised. Call it to plan the work, and again to confirm it is done.';
 
     /** @return array<string, mixed> */
     #[Override]
@@ -135,6 +142,7 @@ class Status extends Tool
             if (! is_array($entry)
                 || ! is_string($entry['uri'] ?? null)
                 || ! is_array($entry['methods'] ?? null)
+                || ! is_array($entry['middleware'] ?? [])
                 || ! is_bool($entry['documented'] ?? null)
                 || ! is_array($entry['schema'] ?? null)
                 || ! is_string($entry['action'] ?? null) && ($entry['action'] ?? null) !== null
@@ -158,6 +166,16 @@ class Status extends Tool
                 $methods[] = $method;
             }
 
+            $middleware = [];
+
+            foreach ($entry['middleware'] ?? [] as $name) {
+                if (! is_string($name)) {
+                    return null;
+                }
+
+                $middleware[] = $name;
+            }
+
             $schema = [];
 
             foreach ($entry['schema'] as $key => $value) {
@@ -168,6 +186,7 @@ class Status extends Tool
                 'uri' => $entry['uri'],
                 'methods' => $methods,
                 'action' => $entry['action'] ?? null,
+                'middleware' => $middleware,
                 'documented' => $entry['documented'],
                 'attribute' => $attribute,
                 'schema' => $schema,
@@ -215,23 +234,24 @@ class Status extends Tool
             return $this->join($sections);
         }
 
-        $conventions = LocalConvention::all($entries);
+        $conventions = LocalConvention::all($entries, $this->methods($undocumented));
         $subclasses = LocalConvention::subclasses($conventions);
 
         if ($conventions !== []) {
-            $sections[] = $this->convention($conventions, $subclasses);
+            $sections[] = $this->convention($conventions, $subclasses, $undocumented !== []);
         }
 
         if ($undocumented !== []) {
             $sections[] = $this->section(
                 sprintf('## Undocumented routes (%d)', count($undocumented)),
-                $this->instruction($subclasses),
+                $this->instruction($subclasses, $undocumented),
                 array_map(
-                    static fn (array $entry): string => sprintf(
-                        '%s %s — %s',
+                    fn (array $entry): string => sprintf(
+                        '%s %s — %s%s',
                         implode('|', $entry['methods']),
                         $entry['uri'],
                         $entry['action'],
+                        $this->middleware($entry),
                     ),
                     $undocumented,
                 ),
@@ -274,10 +294,36 @@ class Status extends Tool
     }
 
     /**
+     * @param  list<Entry>  $entries
+     * @return list<string>
+     */
+    private function methods(array $entries): array
+    {
+        return array_values(array_unique(array_merge(
+            [],
+            ...array_map(static fn (array $entry): array => $entry['methods'], $entries),
+        )));
+    }
+
+    /** @param  Entry  $entry */
+    private function middleware(array $entry): string
+    {
+        $names = array_map(static function (string $name): string {
+            $parts = explode(':', $name, 2);
+
+            return basename(str_replace('\\', '/', $parts[0])).(isset($parts[1]) ? ':'.$parts[1] : '');
+        }, $entry['middleware']);
+
+        return $names === [] ? '' : "\n  middleware: ".implode(', ', $names);
+    }
+
+    /**
      * @param  list<LocalConvention>  $conventions
      * @param  list<LocalConvention>  $subclasses
+     * @param  bool  $outstanding  Whether anything in scope still has to be written, which is what an
+     *                             entry to copy is for. The call that confirms the work is done needs none.
      */
-    private function convention(array $conventions, array $subclasses): string
+    private function convention(array $conventions, array $subclasses, bool $outstanding): string
     {
         $documented = LocalConvention::documented($conventions);
 
@@ -311,8 +357,11 @@ class Status extends Tool
 
         $convention = $subclasses[0];
         $file = $convention->file();
+        $signature = $convention->signature();
+        $storage = $convention->indirect() ? $convention->storage() : null;
+        $fragment = $convention->indirect() && $outstanding ? $convention->fragment() : null;
 
-        return $this->join([
+        return $this->join(array_values(array_filter([
             '## Local convention',
             sprintf(
                 '%s is the attribute this project uses: a project-local #[ApiSchema] subclass, '
@@ -322,29 +371,35 @@ class Status extends Tool
                 $documented,
                 $file === null ? '' : ', declared at '.$file,
             ),
-            sprintf(
+            $signature === null ? '' : '    '.$signature,
+            $storage ?? sprintf(
                 'Follow it, not the generic shape in `example`. Read %s and one call site — %s — first.',
                 $file === null ? 'that class' : 'that file',
                 $convention->action,
             ),
-        ]);
+            $fragment === null ? '' : sprintf(
+                "One entry to copy, the one %s declares:\n\n```php\n%s\n```",
+                $convention->action,
+                $fragment,
+            ),
+        ])));
     }
 
     /**
-     * Sending an agent to `example` is wrong in a project with its own subclass:
-     * it would answer with the generic shape, which is a different convention.
-     *
      * @param  list<LocalConvention>  $subclasses
+     * @param  list<Entry>  $undocumented
      */
-    private function instruction(array $subclasses): string
+    private function instruction(array $subclasses, array $undocumented): string
     {
-        if ($subclasses === []) {
-            return 'Add an #[ApiSchema] attribute to each method below. Call the `example` tool for the shape it takes.';
-        }
+        $attribute = match (true) {
+            $subclasses === [] => 'Add an #[ApiSchema] attribute to each method below. Call the `example` tool for the shape it takes.',
+            count($subclasses) === 1 => sprintf('Add a #[%s] attribute to each method below, following the local convention above.', $subclasses[0]->shortName()),
+            default => 'Add an attribute to each method below, following the local convention above.',
+        };
 
-        return count($subclasses) === 1
-            ? sprintf('Add a #[%s] attribute to each method below, following the local convention above.', $subclasses[0]->shortName())
-            : 'Add an attribute to each method below, following the local convention above.';
+        $middleware = array_filter($undocumented, static fn (array $entry): bool => $entry['middleware'] !== []);
+
+        return $middleware === [] ? $attribute : $attribute."\n\n".self::MIDDLEWARE;
     }
 
     /** @param  list<string>  $items */

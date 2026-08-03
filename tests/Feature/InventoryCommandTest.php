@@ -5,11 +5,13 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ClosureMiddlewareController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ShowArticleController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubApiSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubclassSchemaController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UnbuildableController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndocumentedController;
 
 function inventory(array $options = []): array
@@ -46,7 +48,43 @@ it('carries every key the status tool insists on', function (): void {
 
     $decoded = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
 
-    expect($decoded[0])->toHaveKeys(['uri', 'methods', 'action', 'documented', 'attribute', 'schema']);
+    expect($decoded[0])->toHaveKeys(['uri', 'methods', 'action', 'middleware', 'documented', 'attribute', 'schema']);
+});
+
+it('reports the middleware a route runs, group middleware resolved and parameters kept', function (): void {
+    Route::middleware('auth:sanctum')->group(function (): void {
+        Route::post('api/messages', UndocumentedController::class)->middleware('throttle:api');
+    });
+
+    [, $output] = inventory(['--json' => true]);
+
+    $decoded = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+    $middleware = array_column($decoded, 'middleware', 'uri');
+
+    expect($middleware['/api/messages'])->toBe(['auth:sanctum', 'throttle:api'])
+        ->and($middleware['/openapi.json'])->toBe(['api']);
+});
+
+it('costs one route its controller middleware, not the whole inventory, when it will not build', function (): void {
+    Route::middleware('auth:sanctum')->post('api/unbuildable', UnbuildableController::class);
+
+    [$status, $output] = inventory(['--json' => true]);
+
+    $decoded = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($status)->toBe(0)
+        ->and(array_column($decoded, 'middleware', 'uri')['/api/unbuildable'])->toBe(['auth:sanctum']);
+});
+
+it('reports no middleware for one the route cannot name, rather than failing to encode it', function (): void {
+    Route::post('api/messages', ClosureMiddlewareController::class);
+
+    [, $output] = inventory(['--json' => true]);
+
+    $decoded = json_decode(trim($output), true, 512, JSON_THROW_ON_ERROR);
+
+    expect(array_column($decoded, 'middleware', 'uri')['/api/messages'])->toBe([]);
 });
 
 it('names the concrete subclass, not the attribute the generator matched on', function (): void {

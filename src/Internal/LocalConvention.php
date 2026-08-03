@@ -5,22 +5,15 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Internal;
 
 use ReflectionClass;
+use ReflectionClassConstant;
 use ReflectionMethod;
 use ReflectionParameter;
 use ZeroToProd\LaravelOpenapi\ApiSchema;
 
 /**
- * The attribute class an application actually annotates its controllers with.
- *
- * `SchemaGenerator` matches attributes with `ReflectionAttribute::IS_INSTANCEOF`
- * precisely so an application can declare its own subclass, and applications
- * do. An agent shown the generic `#[ApiSchema([...])]` shape in such a project
- * writes a second, competing convention — so both MCP tools name what is
- * already there instead.
- *
  * @internal
  *
- * @phpstan-type Counted array{action: string|null, documented: bool, attribute?: string|null}
+ * @phpstan-type Counted array{action: string|null, documented: bool, attribute?: string|null, methods?: list<string>, schema?: array<string, mixed>}
  */
 final readonly class LocalConvention
 {
@@ -28,43 +21,50 @@ final readonly class LocalConvention
      * @param  string  $class  The attribute class, as reported by the inventory.
      * @param  int  $count  Documented routes in scope carrying it.
      * @param  string  $action  One of them, as a call site worth reading.
+     * @param  array<string, mixed>  $paths  That call site's declared paths, as the example to follow.
      */
     private function __construct(
         public string $class,
         public int $count,
         public string $action,
+        public array $paths,
     ) {}
 
     /**
-     * Every attribute class in use, most-used first. Ties keep route order, so
-     * the same application always reports the same dominant class.
-     *
      * @param  list<Counted>  $entries
+     * @param  list<string>  $prefer  HTTP methods the work still to do uses. The example reported for a
+     *                                class is one of its routes sharing a method with them where there
+     *                                is one, because that entry's statuses and body are the closest to
+     *                                what is about to be written.
      * @return list<self>
      */
-    public static function all(array $entries): array
+    public static function all(array $entries, array $prefer = []): array
     {
         $counts = [];
         $actions = [];
+        $paths = [];
+        $nearest = [];
 
         foreach ($entries as $entry) {
             $class = $entry['attribute'] ?? null;
-
-            // An action-less entry is a closure route, which cannot carry an
-            // attribute; a class-less one comes from a vendor copy of
-            // `openapi:inventory` older than this server.
             if ($class === null || $entry['action'] === null || ! $entry['documented']) {
                 continue;
             }
 
             $counts[$class] = ($counts[$class] ?? 0) + 1;
-            $actions[$class] ??= $entry['action'];
+            $closer = array_intersect($entry['methods'] ?? [], $prefer) !== [];
+
+            if (! isset($actions[$class]) || $closer && ! $nearest[$class]) {
+                $actions[$class] = $entry['action'];
+                $paths[$class] = self::pathsOf($entry);
+                $nearest[$class] = $closer;
+            }
         }
 
         $conventions = [];
 
         foreach ($counts as $class => $count) {
-            $conventions[] = new self((string) $class, $count, $actions[$class]);
+            $conventions[] = new self((string) $class, $count, $actions[$class], $paths[$class]);
         }
 
         usort($conventions, static fn (self $a, self $b): int => $b->count <=> $a->count);
@@ -73,10 +73,6 @@ final readonly class LocalConvention
     }
 
     /**
-     * The project-local subclasses among them, most-used first. Uses of the
-     * package's own attribute are not a local convention, so they drop out;
-     * the first entry left, if any, is the convention to follow.
-     *
      * @param  list<self>  $conventions
      * @return list<self>
      */
@@ -102,10 +98,6 @@ final readonly class LocalConvention
         return basename(str_replace('\\', '/', $this->class));
     }
 
-    /**
-     * Relative to the application root when it sits beneath it, absolute
-     * otherwise — a vendor-declared attribute is honestly reported as such.
-     */
     public function file(): ?string
     {
         $file = $this->reflect()?->getFileName();
@@ -136,16 +128,58 @@ final readonly class LocalConvention
             : null;
     }
 
-    /**
-     * Whether the constructor takes an OpenAPI fragment. A thin subclass does,
-     * so the generic example applies with the name substituted; one taking a
-     * route enum does not, and the generic example would not compile.
-     */
+    /** @return list<string> */
+    public function constants(): array
+    {
+        $names = [];
+
+        foreach ($this->reflect()?->getReflectionConstants(ReflectionClassConstant::IS_PUBLIC) ?? [] as $constant) {
+            if (is_array($constant->getValue()) && $constant->getDeclaringClass()->getName() !== ApiSchema::class) {
+                $names[] = $constant->getName();
+            }
+        }
+
+        return $names;
+    }
+
+    public function storage(): ?string
+    {
+        $constants = $this->constants();
+
+        return $constants === [] ? null : sprintf(
+            'It takes no OpenAPI fragment of its own: the fragments live in %s, which the constructor '
+            .'merges. Add yours there — and do not read the whole class, it carries every route '
+            .'documented so far.',
+            implode(', ', array_map(static fn (string $name): string => 'const '.$name, $constants)),
+        );
+    }
+
+    public function fragment(): ?string
+    {
+        return $this->paths === [] ? null : Fragment::render($this->paths);
+    }
+
+    public function indirect(): bool
+    {
+        return $this->signature() !== null && ! $this->takesFragment();
+    }
+
     public function takesFragment(): bool
     {
         $type = ($this->constructor()?->getParameters()[0] ?? null)?->getType();
 
         return (string) $type === 'array';
+    }
+
+    /**
+     * @param  Counted  $entry
+     * @return array<string, mixed>
+     */
+    private static function pathsOf(array $entry): array
+    {
+        $paths = ($entry['schema'] ?? [])['paths'] ?? null;
+
+        return is_array($paths) ? $paths : [];
     }
 
     private function constructor(): ?ReflectionMethod
@@ -156,8 +190,6 @@ final readonly class LocalConvention
     /** @return ReflectionClass<object>|null */
     private function reflect(): ?ReflectionClass
     {
-        // The class name arrives from a subprocess's JSON, so it is a string
-        // this process has no guarantee it can load.
         return class_exists($this->class) ? new ReflectionClass($this->class) : null;
     }
 }

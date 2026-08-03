@@ -8,6 +8,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use ReflectionAttribute;
 use ReflectionMethod;
+use Throwable;
 
 /**
  * @phpstan-import-type PathItem from ApiSchema
@@ -56,6 +57,7 @@ readonly class SchemaGenerator
      *     uri: string,
      *     methods: list<string>,
      *     action: string|null,
+     *     middleware: list<string>,
      *     documented: bool,
      *     attribute: class-string|null,
      *     schema: array{paths?: array<string, PathItem>, components?: Components}
@@ -73,6 +75,7 @@ readonly class SchemaGenerator
                 'uri' => '/'.ltrim($route->uri(), '/'),
                 'methods' => array_values(array_diff($route->methods(), ['HEAD'])),
                 'action' => $method instanceof ReflectionMethod ? $method->getDeclaringClass()->getName().'::'.$method->getName() : null,
+                'middleware' => $this->middlewareFor($route),
                 'documented' => $attribute !== null,
                 'attribute' => $attribute?->getName(),
                 'schema' => $attribute?->newInstance()->schema ?? [],
@@ -82,7 +85,18 @@ readonly class SchemaGenerator
         return $inventory;
     }
 
-    /** The controller method behind a route, or null when a closure handles it. */
+    /** @return list<string> */
+    private function middlewareFor(Route $route): array
+    {
+        try {
+            $middleware = $route->gatherMiddleware();
+        } catch (Throwable) {
+            $middleware = $route->middleware();
+        }
+
+        return array_values(array_filter($middleware, is_string(...)));
+    }
+
     private function methodFor(Route $route): ?ReflectionMethod
     {
         $controller = $route->getControllerClass();
