@@ -10,7 +10,7 @@ package effectively without specialized knowledge or skills.
 ## Requirements
 
 - PHP `^8.4`
-- [Laravel](https://laravel.com/) 12 or 13
+- [Laravel](https://laravel.com/) 13
 
 ## Installation
 
