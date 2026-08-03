@@ -1,6 +1,7 @@
 {
     "symbol-whitelist": [
         "app",
+        "base_path",
         "config",
         "config_path",
         "storage_path",
@@ -15,16 +16,19 @@
         "Symfony\\Bridge\\PsrHttpMessage\\Factory\\PsrHttpFactory",
 
         "Laravel\\Mcp\\Facades\\Mcp",
+        "Laravel\\Mcp\\Request",
         "Laravel\\Mcp\\Response",
         "Laravel\\Mcp\\Server",
         "Laravel\\Mcp\\Server\\McpServiceProvider",
         "Laravel\\Mcp\\Server\\Registrar",
         "Laravel\\Mcp\\Server\\Tool",
 
+        "Illuminate\\Contracts\\JsonSchema\\JsonSchema",
         "Illuminate\\Testing\\TestResponse",
         "PHPUnit\\Framework\\Assert",
 
         "Symfony\\Component\\HttpFoundation\\Request",
-        "Symfony\\Component\\HttpFoundation\\Response"
+        "Symfony\\Component\\HttpFoundation\\Response",
+        "Symfony\\Component\\Process\\Process"
     ]
 }

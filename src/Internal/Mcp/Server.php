@@ -28,10 +28,12 @@ class Server extends \Laravel\Mcp\Server
         you that: the attribute is often a project-local subclass, and route URIs
         are frequently built at runtime, so neither is reliably greppable.
 
-        Call the `example` tool before adding or changing an endpoint. It is a
-        worked, verified example of the attribute, the route, the tests that
-        prove the two agree, the CI gate, and what each failure message means.
-        Read it once per session, not once per endpoint.
+        Call the `example` tool before adding or changing an endpoint. With no
+        arguments it returns the rules that are specific to this package and
+        what each failure message means — the part you cannot infer from
+        knowing OpenAPI. Pass a `topic` for one part (`security` is the one
+        that most often costs a test cycle), or `all` for the complete worked
+        example. Read it once per session, not once per endpoint.
 
         Call the `readme` tool for anything the example does not cover —
         installation, routing and config options, the MCP server itself, or the

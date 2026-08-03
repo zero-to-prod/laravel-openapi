@@ -12,6 +12,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Override;
 use ZeroToProd\LaravelOpenapi\Console\CoverageCommand;
+use ZeroToProd\LaravelOpenapi\Console\InventoryCommand;
 use ZeroToProd\LaravelOpenapi\Console\ValidateSchemaCommand;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 
@@ -42,6 +43,7 @@ class LaravelOpenapiServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 CoverageCommand::class,
+                InventoryCommand::class,
                 ValidateSchemaCommand::class,
             ]);
 
