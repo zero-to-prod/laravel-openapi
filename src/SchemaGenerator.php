@@ -32,11 +32,9 @@ readonly class SchemaGenerator
         $paths = [];
         $components = [];
 
-        foreach ($this->router->getRoutes()->getRoutes() as $route) {
-            $schema = $this->schemaFor($route);
-
-            $paths[] = $schema['paths'] ?? [];
-            $components[] = $schema['components'] ?? [];
+        foreach ($this->inventory() as $entry) {
+            $paths[] = $entry['schema']['paths'] ?? [];
+            $components[] = $entry['schema']['components'] ?? [];
         }
 
         $paths = array_replace_recursive([], ...$paths);
@@ -51,24 +49,51 @@ readonly class SchemaGenerator
         );
     }
 
-    /** @return array{paths?: array<string, PathItem>, components?: Components} */
-    private function schemaFor(Route $route): array
+    /**
+     * Every registered route paired with the schema its handler declares. The
+     * document is one reduction of this; the MCP `status` tool is another, and
+     * needs the routes that declared nothing, which the document cannot show.
+     *
+     * @internal
+     *
+     * @return list<array{uri: string, methods: list<string>, action: string|null, documented: bool, schema: array{paths?: array<string, PathItem>, components?: Components}}>
+     */
+    public function inventory(): array
+    {
+        $inventory = [];
+
+        foreach ($this->router->getRoutes()->getRoutes() as $route) {
+            $method = $this->methodFor($route);
+            $attribute = $method?->getAttributes(ApiSchema::class, $this->attributeFlags)[0] ?? null;
+
+            $inventory[] = [
+                'uri' => '/'.ltrim($route->uri(), '/'),
+                'methods' => array_values(array_diff($route->methods(), ['HEAD'])),
+                'action' => $method instanceof ReflectionMethod ? $method->getDeclaringClass()->getName().'::'.$method->getName() : null,
+                'documented' => $attribute !== null,
+                'schema' => $attribute?->newInstance()->schema ?? [],
+            ];
+        }
+
+        return $inventory;
+    }
+
+    /** The controller method behind a route, or null when a closure handles it. */
+    private function methodFor(Route $route): ?ReflectionMethod
     {
         $controller = $route->getControllerClass();
 
         if ($controller === null) {
-            return [];
+            return null;
         }
 
         $method = $route->getActionMethod();
         $method = $method === $controller ? '__invoke' : $method;
 
         if (! method_exists($controller, $method)) {
-            return [];
+            return null;
         }
 
-        $attribute = (new ReflectionMethod($controller, $method))->getAttributes(ApiSchema::class, $this->attributeFlags)[0] ?? null;
-
-        return $attribute?->newInstance()->schema ?? [];
+        return new ReflectionMethod($controller, $method);
     }
 }
