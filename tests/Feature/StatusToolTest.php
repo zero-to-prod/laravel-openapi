@@ -7,7 +7,11 @@ use Laravel\Mcp\Server\Testing\TestResponse;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Status;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ShowArticleController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubApiSchema;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubclassSchemaController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndocumentedController;
 
 beforeEach(function (): void {
@@ -63,6 +67,27 @@ function withoutFreshProcess(): void
     withArtisan(null);
 }
 
+/**
+ * Points the application at the package root, which carries no `artisan`, so
+ * the in-process fallback still runs but paths under it render relative.
+ */
+function withRepositoryAsBasePath(): void
+{
+    app()->setBasePath(dirname(__DIR__, 2));
+}
+
+/** An `artisan` printing the given inventory, and nothing else. */
+function withInventory(array $entries): void
+{
+    withArtisan('<?php echo '.var_export(json_encode($entries, JSON_THROW_ON_ERROR), true).';');
+}
+
+/** The report as one string, for the assertions that are about its order. */
+function statusText(array $arguments = []): string
+{
+    return mcpText(status($arguments));
+}
+
 it('describes the tool so an agent knows when to call it', function (): void {
     $tool = new Status;
 
@@ -72,9 +97,6 @@ it('describes the tool so an agent knows when to call it', function (): void {
 });
 
 it('reads the application from a fresh process rather than this one', function (): void {
-    // This process serves the document from /changed.json. A process starting
-    // now reads the shipped default instead, so seeing /openapi.json — and not
-    // /changed.json — is proof the inventory did not come from here.
     $this->withConfig([
         'openapi.route.uri' => 'changed.json',
         'openapi.coverage.path' => sys_get_temp_dir().'/openapi-status-test/coverage.jsonl',
@@ -109,8 +131,6 @@ it('falls back when the fresh process prints nothing it can parse', function ():
 });
 
 it('falls back rather than half-trusting an inventory of the wrong shape', function (): void {
-    // A route reported with a numeric URI would render as undocumented work
-    // that does not exist. Reject the batch instead of rendering part of it.
     withArtisan('<?php echo json_encode([["uri" => 123, "methods" => [], "documented" => false, "schema" => []]]);');
 
     status()->assertSee('Could not read the application from a fresh process');
@@ -139,6 +159,114 @@ it('names the routes that declare no schema, and where to add the attribute', fu
         'POST /articles/{id}/publish — '.UndocumentedController::class.'::__invoke',
         'Call the `example` tool',
     ]);
+});
+
+it('names the project-local subclass, its file and a call site to read', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()->assertSee([
+        '## Local convention',
+        EnumConstructedSchema::class.' is the attribute this project uses',
+        'on 1 of 2 documented routes, declared at tests/Fixtures/EnumConstructedSchema.php.',
+        'Read that file and one call site — '.EnumConstructedController::class.'::__invoke — first.',
+    ]);
+});
+
+it('tells the agent to add the subclass, not the package attribute it would find in `example`', function (): void {
+    withoutFreshProcess();
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()
+        ->assertSee('Add a #[EnumConstructedSchema] attribute to each method below, following the local convention above.')
+        ->assertDontSee('Call the `example` tool for the shape it takes.');
+});
+
+it('meets the agent with the convention before the work list, not after it', function (): void {
+    withoutFreshProcess();
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    $text = statusText();
+
+    expect(strpos($text, '## Local convention'))->toBeLessThan((int) strpos($text, '## Undocumented routes'));
+});
+
+it('says so plainly when only the package attribute is in use', function (): void {
+    withoutFreshProcess();
+    Route::get('articles/{id}', ShowArticleController::class);
+
+    status()
+        ->assertSee([
+            '## Local convention',
+            "Documented routes in scope: 2, all using the package's #[ApiSchema] directly.",
+            '{"topic": "attribute"}',
+        ])
+        ->assertDontSee('project-local');
+});
+
+it('lists every subclass with its count, and recommends none, when more than one is in use', function (): void {
+    withRepositoryAsBasePath();
+    Route::get('sub', SubclassSchemaController::class);
+    Route::get('enum-constructed', EnumConstructedController::class);
+    Route::post('articles/{id}/publish', UndocumentedController::class);
+
+    status()
+        ->assertSee([
+            '## Local convention',
+            'More than one attribute class is in use.',
+            SubApiSchema::class.' — 1, e.g. '.SubclassSchemaController::class.'::__invoke (tests/Fixtures/SubApiSchema.php)',
+            EnumConstructedSchema::class.' — 1, e.g. '.EnumConstructedController::class.'::__invoke',
+            'Add an attribute to each method below, following the local convention above.',
+        ])
+        ->assertDontSee('is the attribute this project uses');
+});
+
+it('omits the convention section when nothing in scope is documented', function (): void {
+    withoutFreshProcess();
+    Route::post('api/messages', UndocumentedController::class);
+
+    status(['path' => '/api'])
+        ->assertDontSee('## Local convention')
+        ->assertSee('Add an #[ApiSchema] attribute to each method below.');
+});
+
+it('reports an attribute class it cannot locate without a file pointer, rather than crashing', function (): void {
+    withInventory([
+        ['uri' => '/x', 'methods' => ['GET'], 'action' => 'A::b', 'documented' => true, 'attribute' => 'App\\Nope', 'schema' => []],
+        ['uri' => '/y', 'methods' => ['GET'], 'action' => 'A::c', 'documented' => false, 'attribute' => null, 'schema' => []],
+    ]);
+
+    status()->assertSee([
+        'App\Nope is the attribute this project uses: a project-local #[ApiSchema] subclass, on 1 of 1 documented routes.',
+        'Read that class and one call site — A::b — first.',
+        'Add a #[Nope] attribute to each method below',
+    ]);
+});
+
+it('shows an absolute path for an attribute class declared outside the application', function (): void {
+    withoutFreshProcess();
+    Route::get('sub', SubclassSchemaController::class);
+
+    status()->assertSee(', declared at '.dirname(__DIR__).'/Fixtures/SubApiSchema.php.');
+});
+
+it('keeps working against an inventory from a vendor copy that omits the attribute', function (): void {
+    withInventory([
+        ['uri' => '/legacy', 'methods' => ['GET'], 'action' => 'A::b', 'documented' => true, 'schema' => []],
+    ]);
+
+    status()
+        ->assertSee('1 in scope, 1 documented, 0 undocumented')
+        ->assertDontSee(['Could not read the application from a fresh process', '## Local convention']);
+});
+
+it('falls back rather than half-trusting an inventory whose attribute is not a class name', function (): void {
+    withArtisan('<?php echo json_encode([["uri" => "/x", "methods" => ["GET"], "action" => "A::b", "documented" => true, "attribute" => 7, "schema" => []]]);');
+
+    status()->assertSee('Could not read the application from a fresh process');
 });
 
 it('counts a route carrying the attribute as documented', function (): void {

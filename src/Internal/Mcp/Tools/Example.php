@@ -9,13 +9,15 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Override;
+use ZeroToProd\LaravelOpenapi\Internal\LocalConvention;
+use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 /** @internal */
 class Example extends Tool
 {
     protected string $name = 'example';
 
-    protected string $description = 'How to document and test an endpoint. Defaults to `rules`: the package-specific rules and the failure table, which is the part you cannot guess. Pass a topic for one part, or `all` for the complete worked example.';
+    protected string $description = 'How to document and test an endpoint. Defaults to `start`: the attribute shape, this project\'s own attribute convention, and the rules that cost a test cycle. A topic for one part, `all` for everything.';
 
     private const string HEADING = <<<'MARKDOWN'
         # Implementing and testing an endpoint
@@ -27,6 +29,72 @@ class Example extends Tool
         Every snippet below is copied from this package's own test suite, so the
         controllers really do serve responses that validate, and the tests really
         do pass.
+        MARKDOWN;
+
+    /**
+     * The default. Enough to write a first correct endpoint unaided, and no
+     * more: shape, then the four rules that otherwise cost a test cycle, then
+     * where to go when one does. Diagnosis lives in `rules` and `failures`,
+     * which an agent that has not run a test yet should not be paying for.
+     */
+    private const string START = <<<'MARKDOWN'
+        # Documenting an endpoint
+
+        Declare the endpoint on the controller method with an attribute holding a
+        plain OpenAPI 3.0.4 fragment. It is merged into the document verbatim, and
+        nothing is inferred from your code.
+
+        ```php
+        use Illuminate\Http\JsonResponse;
+        use ZeroToProd\LaravelOpenapi\ApiSchema;
+
+        #[ApiSchema([
+            'paths' => [
+                '/articles/{id}' => [
+                    'get' => [
+                        'operationId' => 'showArticle',
+                        'responses' => [
+                            '200' => [
+                                'description' => 'The article.',
+                                'content' => [
+                                    'application/json' => [
+                                        'schema' => [
+                                            'type' => 'object',
+                                            'required' => ['id'],
+                                            'properties' => ['id' => ['type' => 'string']],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ])]
+        public function __invoke(string $id): JsonResponse
+        ```
+
+        Four rules decide whether the tests pass:
+
+        - **The response `Content-Type` has to match the declared media type.**
+          `JsonResponse` sends `application/json`, so declare exactly that.
+        - **Declare every status the method can return.** One you omit is not an
+          undocumented extra; it is a failure the first time a test reaches it.
+        - **The request is validated before the response.** A test for a 422 has to
+          send a body the `requestBody` schema *accepts* and the application rejects.
+        - **A declared `security` requirement must be satisfied by the test request.**
+          `actingAs()` fakes the guard and sets no header, so add
+          `->withToken('any-value')`, or the 401 can never be exercised either.
+
+        Then test it. Wrap the response in `assertMatchesSchema()` — it resolves the
+        operation from the request, so you never name the path, method or status —
+        and write one test per declared status, which is what the coverage gate counts.
+
+        ```php
+        it('returns an article', function (): void {
+            $this->assertMatchesSchema($this->getJson('articles/42')->assertOk());
+        });
+        ```
         MARKDOWN;
 
     /**
@@ -539,33 +607,39 @@ class Example extends Tool
     {
         return [
             'topic' => $schema->string()->description(
-                'Which part to return. Defaults to `rules`: the package-specific rules and the failure '
-                .'table, which is the part you cannot infer. Other topics: setup, attribute, routing, '
-                .'testing, coverage, requestBody, security, failures. Pass `all` for the complete '
-                .'worked example.'
+                'Defaults to `start`: the shape, the local convention and the rules. Others: setup, '
+                .'attribute, routing, testing, coverage, requestBody, security, rules, failures, all.'
             ),
         ];
     }
 
-    public function handle(Request $request): Response
+    public function handle(Request $request, SchemaGenerator $SchemaGenerator): Response
     {
         $topic = $request->get('topic');
-        $topic = is_string($topic) && $topic !== '' ? $topic : 'rules';
+        $topic = is_string($topic) && $topic !== '' ? $topic : 'start';
 
-        if ($topic === 'all') {
-            return Response::text(self::content());
-        }
-
-        if ($topic !== 'rules' && isset(self::SECTIONS[$topic])) {
+        if ($topic !== 'attribute' && isset(self::SECTIONS[$topic])) {
             return Response::text(self::SECTIONS[$topic]);
         }
 
-        // The rules are the irreducible payload, so an unknown topic still gets
-        // them. Guessing wrong should cost a correction, not a round trip.
-        $rules = implode("\n\n", [$this->index(), self::SECTIONS['rules'], self::SECTIONS['failures']]);
+        $conventions = LocalConvention::all($SchemaGenerator->inventory());
+        $subclasses = LocalConvention::subclasses($conventions);
+        $preamble = $subclasses === []
+            ? null
+            : $this->convention($subclasses[0], LocalConvention::documented($conventions));
+
+        if ($topic === 'all') {
+            return Response::text($this->prepend($preamble, self::content()));
+        }
+
+        if ($topic === 'attribute') {
+            return Response::text($this->prepend($preamble, self::SECTIONS['attribute']));
+        }
+
+        $start = $this->prepend($preamble, implode("\n\n", [self::START, $this->index()]));
 
         return Response::text(
-            $topic === 'rules' ? $rules : sprintf("There is no `%s` topic.\n\n%s", $topic, $rules)
+            $topic === 'start' ? $start : sprintf("There is no `%s` topic.\n\n%s", $topic, $start)
         );
     }
 
@@ -574,13 +648,47 @@ class Example extends Tool
         return implode("\n\n", [self::HEADING, ...array_values(self::SECTIONS)]);
     }
 
+    private function convention(LocalConvention $convention, int $documented): string
+    {
+        $file = $convention->file();
+        $signature = $convention->signature();
+
+        return implode("\n\n", [
+            '## Local convention — read this first',
+
+            sprintf(
+                'This project uses its own #[ApiSchema] subclass, on %d of %d documented routes:',
+                $convention->count,
+                $documented,
+            ),
+
+            implode("\n", array_filter([
+                '    '.$convention->class.($file === null ? '' : '        ('.$file.')'),
+                $signature === null ? '' : '    '.$signature,
+            ])),
+
+            $convention->takesFragment()
+                ? 'It takes an OpenAPI fragment, so the shape below applies as written — just use the subclass name.'
+                : sprintf(
+                    "It takes no OpenAPI fragment, so the shape below does not apply verbatim. Read it and one call site first:\n\n    %s",
+                    $convention->action,
+                ),
+
+            'The shape below still describes what ends up in the document, and the rules still apply.',
+        ]);
+    }
+
+    private function prepend(?string $preamble, string $content): string
+    {
+        return $preamble === null ? $content : $preamble."\n\n".$content;
+    }
+
     private function index(): string
     {
         return sprintf(
-            'Topics: %s, all. This is `rules`, the default — the rules that are specific to this '
-            ."package, and what each failure means. Everything else is on request.\n"
-            .'Call `example` with `{"topic": "all"}` for the complete worked example.',
-            implode(', ', array_values(array_diff(array_keys(self::SECTIONS), ['rules']))),
+            "Topics: %s, all. This was `start`, the default.\n"
+            .'`rules` and `failures` when a test fails; `all` for the complete worked example.',
+            implode(', ', ['start', ...array_keys(self::SECTIONS)]),
         );
     }
 }

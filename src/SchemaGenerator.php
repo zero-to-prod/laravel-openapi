@@ -50,13 +50,16 @@ readonly class SchemaGenerator
     }
 
     /**
-     * Every registered route paired with the schema its handler declares. The
-     * document is one reduction of this; the MCP `status` tool is another, and
-     * needs the routes that declared nothing, which the document cannot show.
-     *
      * @internal
      *
-     * @return list<array{uri: string, methods: list<string>, action: string|null, documented: bool, schema: array{paths?: array<string, PathItem>, components?: Components}}>
+     * @return list<array{
+     *     uri: string,
+     *     methods: list<string>,
+     *     action: string|null,
+     *     documented: bool,
+     *     attribute: class-string|null,
+     *     schema: array{paths?: array<string, PathItem>, components?: Components}
+     * }>
      */
     public function inventory(): array
     {
@@ -71,6 +74,7 @@ readonly class SchemaGenerator
                 'methods' => array_values(array_diff($route->methods(), ['HEAD'])),
                 'action' => $method instanceof ReflectionMethod ? $method->getDeclaringClass()->getName().'::'.$method->getName() : null,
                 'documented' => $attribute !== null,
+                'attribute' => $attribute?->getName(),
                 'schema' => $attribute?->newInstance()->schema ?? [],
             ];
         }

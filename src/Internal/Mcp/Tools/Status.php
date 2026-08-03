@@ -11,21 +11,17 @@ use Laravel\Mcp\Server\Tool;
 use Override;
 use Symfony\Component\Process\Process;
 use Throwable;
+use ZeroToProd\LaravelOpenapi\Internal\LocalConvention;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 /**
  * @internal
  *
- * @phpstan-type Entry array{uri: string, methods: list<string>, action: string|null, documented: bool, schema: array<string, mixed>}
+ * @phpstan-type Entry array{uri: string, methods: list<string>, action: string|null, documented: bool, attribute: string|null, schema: array<string, mixed>}
  */
 class Status extends Tool
 {
-    /**
-     * A boot costs a second or two. This tool is called twice a session — once
-     * to plan and once to verify — and the verification call is worthless
-     * without it, so the trade is not close.
-     */
     private const int TIMEOUT = 30;
 
     private const string STALE = <<<'MARKDOWN'
@@ -37,7 +33,7 @@ class Status extends Tool
 
     protected string $name = 'status';
 
-    protected string $description = 'Reports which registered routes declare no schema, and which declared responses no test has exercised. Call it to plan the work, and again to confirm the work is done.';
+    protected string $description = 'Routes that declare no schema, and declared responses no test exercised. Call it to plan the work, and again to confirm it is done.';
 
     /** @return array<string, mixed> */
     #[Override]
@@ -45,7 +41,7 @@ class Status extends Tool
     {
         return [
             'path' => $schema->string()->description(
-                'Report only routes whose URI starts with this prefix, such as /api. Omit it to report every registered route.'
+                'URI prefix to report on, such as /api. Omit for every registered route.'
             ),
         ];
     }
@@ -62,10 +58,6 @@ class Status extends Tool
             static fn (array $entry): bool => $prefix === null || str_starts_with($entry['uri'], $prefix),
         ));
 
-        // The suite that records coverage runs in a different process to this
-        // one, so the file it left behind is the only record available here.
-        // Flush first: a `--reset` between calls has to be visible, and load()
-        // merges rather than replaces.
         SchemaCoverage::flush();
         SchemaCoverage::load();
 
@@ -94,15 +86,7 @@ class Status extends Tool
         return is_array($paths) ? $paths : [];
     }
 
-    /**
-     * Reflection cannot see a controller edited after the class was
-     * autoloaded, and this server holds the application open for its whole
-     * life — so the first call is what makes every later one wrong. Reading
-     * the inventory out of a process that started a moment ago is the only
-     * answer that survives the agent editing the files it just asked about.
-     *
-     * @return list<Entry>|null Null when the subprocess could not be trusted.
-     */
+    /** @return list<Entry>|null Null when the subprocess could not be trusted. */
     private function fromFreshProcess(): ?array
     {
         $artisan = base_path('artisan');
@@ -115,9 +99,6 @@ class Status extends Tool
         $Process->setTimeout(self::TIMEOUT);
 
         // @codeCoverageIgnoreStart
-        // Only reachable where the runtime refuses to fork at all — `proc_open`
-        // disabled by a hardened php.ini, typically. The suite cannot produce
-        // that, but a report with a staleness warning still beats a stack trace.
         try {
             $Process->run();
         } catch (Throwable) {
@@ -128,13 +109,7 @@ class Status extends Tool
         return $Process->isSuccessful() ? $this->decode($Process->getOutput()) : null;
     }
 
-    /**
-     * The inventory is one line of JSON, printed last. Scanning backwards means
-     * a deprecation notice or a stray `dump()` earlier in the output costs
-     * nothing.
-     *
-     * @return list<Entry>|null
-     */
+    /** @return list<Entry>|null */
     private function decode(string $output): ?array
     {
         foreach (array_reverse(preg_split('/\R/', trim($output)) ?: []) as $line) {
@@ -149,9 +124,6 @@ class Status extends Tool
     }
 
     /**
-     * A half-understood inventory is worse than none: it would report real
-     * routes as undocumented. Anything unexpected fails the whole batch.
-     *
      * @param  array<mixed>  $decoded
      * @return list<Entry>|null
      */
@@ -167,6 +139,12 @@ class Status extends Tool
                 || ! is_array($entry['schema'] ?? null)
                 || ! is_string($entry['action'] ?? null) && ($entry['action'] ?? null) !== null
             ) {
+                return null;
+            }
+
+            $attribute = $entry['attribute'] ?? null;
+
+            if ($attribute !== null && ! is_string($attribute)) {
                 return null;
             }
 
@@ -191,6 +169,7 @@ class Status extends Tool
                 'methods' => $methods,
                 'action' => $entry['action'] ?? null,
                 'documented' => $entry['documented'],
+                'attribute' => $attribute,
                 'schema' => $schema,
             ];
         }
@@ -236,10 +215,17 @@ class Status extends Tool
             return $this->join($sections);
         }
 
+        $conventions = LocalConvention::all($entries);
+        $subclasses = LocalConvention::subclasses($conventions);
+
+        if ($conventions !== []) {
+            $sections[] = $this->convention($conventions, $subclasses);
+        }
+
         if ($undocumented !== []) {
             $sections[] = $this->section(
                 sprintf('## Undocumented routes (%d)', count($undocumented)),
-                'Add an #[ApiSchema] attribute to each method below. Call the `example` tool for the shape it takes.',
+                $this->instruction($subclasses),
                 array_map(
                     static fn (array $entry): string => sprintf(
                         '%s %s — %s',
@@ -285,6 +271,80 @@ class Status extends Tool
         }
 
         return $this->join($sections);
+    }
+
+    /**
+     * @param  list<LocalConvention>  $conventions
+     * @param  list<LocalConvention>  $subclasses
+     */
+    private function convention(array $conventions, array $subclasses): string
+    {
+        $documented = LocalConvention::documented($conventions);
+
+        if ($subclasses === []) {
+            return $this->join([
+                '## Local convention',
+                sprintf(
+                    "Documented routes in scope: %d, all using the package's #[ApiSchema] directly.\n"
+                    .'Call `example` with {"topic": "attribute"} for the shape.',
+                    $documented,
+                ),
+            ]);
+        }
+
+        if (count($subclasses) > 1) {
+            return $this->section(
+                '## Local convention',
+                'More than one attribute class is in use. Follow whichever the file you are editing already uses, not the generic shape in `example`.',
+                array_map(
+                    static fn (LocalConvention $convention): string => sprintf(
+                        '%s — %d, e.g. %s%s',
+                        $convention->class,
+                        $convention->count,
+                        $convention->action,
+                        $convention->file() === null ? '' : ' ('.$convention->file().')',
+                    ),
+                    $conventions,
+                ),
+            );
+        }
+
+        $convention = $subclasses[0];
+        $file = $convention->file();
+
+        return $this->join([
+            '## Local convention',
+            sprintf(
+                '%s is the attribute this project uses: a project-local #[ApiSchema] subclass, '
+                .'on %d of %d documented routes%s.',
+                $convention->class,
+                $convention->count,
+                $documented,
+                $file === null ? '' : ', declared at '.$file,
+            ),
+            sprintf(
+                'Follow it, not the generic shape in `example`. Read %s and one call site — %s — first.',
+                $file === null ? 'that class' : 'that file',
+                $convention->action,
+            ),
+        ]);
+    }
+
+    /**
+     * Sending an agent to `example` is wrong in a project with its own subclass:
+     * it would answer with the generic shape, which is a different convention.
+     *
+     * @param  list<LocalConvention>  $subclasses
+     */
+    private function instruction(array $subclasses): string
+    {
+        if ($subclasses === []) {
+            return 'Add an #[ApiSchema] attribute to each method below. Call the `example` tool for the shape it takes.';
+        }
+
+        return count($subclasses) === 1
+            ? sprintf('Add a #[%s] attribute to each method below, following the local convention above.', $subclasses[0]->shortName())
+            : 'Add an attribute to each method below, following the local convention above.';
     }
 
     /** @param  list<string>  $items */

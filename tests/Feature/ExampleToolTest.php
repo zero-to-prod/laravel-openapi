@@ -7,20 +7,25 @@ use PHPUnit\Framework\AssertionFailedError;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Example;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ApiRoute;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SecureArticleController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ShowArticleController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\StoreArticleController;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubApiSchema;
+use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubclassSchemaController;
 
-/**
- * The controllers the tool holds as text are kept in tests/Fixtures so the
- * suite can register them and prove they validate. This returns a fixture from
- * its first `use` statement onward, which is the snippet the tool embeds.
- */
 function snippet(string $class): string
 {
     $source = (string) file_get_contents(dirname(__DIR__).'/Fixtures/'.$class.'.php');
 
     return trim(substr($source, (int) strpos($source, 'use Illuminate')));
+}
+
+function text(array $arguments = []): string
+{
+    return mcpText(Server::tool(Example::class, $arguments));
 }
 
 beforeEach(function (): void {
@@ -40,31 +45,56 @@ it('describes the tool so an agent knows when to call it', function (): void {
     expect($tool->name())->toBe('example')
         ->and($tool->description())->toContain('endpoint')
         ->and($tool->description())->toContain('rules')
+        ->and($tool->description())->toContain('start')
         ->and($tool->toArray()['inputSchema']['properties'])->toHaveKey('topic');
 });
 
-it('returns the rules and the failure table by default, not the whole example', function (): void {
+it('leads with the attribute shape by default, not the failure table', function (): void {
     Server::tool(Example::class)
         ->assertOk()
         ->assertHasNoErrors()
         ->assertName('example')
         ->assertSee([
-            '## Rules that decide whether this works',
-            '## What a failure is telling you',
-            'One attribute per controller method',
+            '# Documenting an endpoint',
+            '#[ApiSchema([',
+            "'operationId' => 'showArticle',",
+            'assertMatchesSchema',
         ])
         ->assertDontSee([
             '# Implementing and testing an endpoint',
             '## 1. Set up the application once',
-            'class ShowArticleController',
+            '## What a failure is telling you',
         ]);
+});
+
+it('carries the four rules that otherwise cost a test cycle', function (): void {
+    Server::tool(Example::class)->assertSee([
+        'The response `Content-Type` has to match the declared media type.',
+        'Declare every status the method can return.',
+        'The request is validated before the response.',
+        "->withToken('any-value')",
+    ]);
+});
+
+it('stays small enough to be the payload an agent always pays for', function (): void {
+    expect(strlen(text()))->toBeLessThan(2600);
 });
 
 it('names the other topics so an agent knows the rest exists', function (): void {
     Server::tool(Example::class)->assertSee([
-        'setup, attribute, routing, testing, coverage, requestBody, security, failures, all',
-        '{"topic": "all"}',
+        'start, setup, attribute, routing, testing, coverage, requestBody, security, rules, failures, all',
+        '`all` for the complete worked example',
     ]);
+});
+
+it('returns the rules on request, without the failure table it used to drag along', function (): void {
+    Server::tool(Example::class, ['topic' => 'rules'])
+        ->assertOk()
+        ->assertSee([
+            '## Rules that decide whether this works',
+            'One attribute per controller method',
+        ])
+        ->assertDontSee(['## What a failure is telling you', 'Topics:']);
 });
 
 it('returns the complete worked example on request', function (): void {
@@ -105,16 +135,67 @@ it('still makes progress when the topic is a guess that missed', function (): vo
         ->assertHasNoErrors()
         ->assertSee([
             'There is no `authentication` topic.',
-            'setup, attribute, routing, testing, coverage, requestBody, security, failures, all',
-            '## Rules that decide whether this works',
+            'start, setup, attribute, routing, testing, coverage, requestBody, security, rules, failures, all',
+            '# Documenting an endpoint',
         ]);
 });
 
 it('treats an empty topic as no topic at all', function (): void {
     Server::tool(Example::class, ['topic' => ''])
-        ->assertSee('## Rules that decide whether this works')
+        ->assertSee('# Documenting an endpoint')
         ->assertDontSee('There is no');
 });
+
+it('says nothing about a local convention when the project uses the package attribute', function (): void {
+    Server::tool(Example::class)->assertDontSee('## Local convention — read this first');
+});
+
+it('names the project-local subclass ahead of the generic shape', function (): void {
+    Route::get('enum-constructed', EnumConstructedController::class);
+
+    $text = text();
+
+    expect($text)
+        ->toContain('## Local convention — read this first')
+        ->toContain('on 1 of 5 documented routes:')
+        ->toContain(EnumConstructedSchema::class)
+        ->toContain('__construct('.ApiRoute::class.' $ApiRoute)')
+        ->and(strpos($text, '## Local convention'))->toBeLessThan((int) strpos($text, '# Documenting an endpoint'));
+});
+
+it('refuses to pretend the generic fragment fits a constructor that would not take it', function (): void {
+    Route::get('enum-constructed', EnumConstructedController::class);
+
+    Server::tool(Example::class)->assertSee([
+        'It takes no OpenAPI fragment, so the shape below does not apply verbatim.',
+        EnumConstructedController::class.'::__invoke',
+    ]);
+});
+
+it('says the generic example applies directly when the subclass takes a fragment', function (): void {
+    Route::get('sub', SubclassSchemaController::class);
+
+    Server::tool(Example::class)
+        ->assertSee([
+            SubApiSchema::class,
+            '__construct(array $schema)',
+            'It takes an OpenAPI fragment, so the shape below applies as written',
+        ])
+        ->assertDontSee('does not apply verbatim');
+});
+
+it('prepends the convention to the topics that show the attribute, and to nothing else', function (string $topic, bool $expected): void {
+    Route::get('enum-constructed', EnumConstructedController::class);
+
+    expect(str_contains(text(['topic' => $topic]), '## Local convention'))->toBe($expected);
+})->with([
+    ['attribute', true],
+    ['all', true],
+    ['start', true],
+    ['rules', false],
+    ['failures', false],
+    ['security', false],
+]);
 
 it('walks an agent through every step of the workflow', function (): void {
     expect(Example::content())
