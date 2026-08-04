@@ -7,9 +7,6 @@ use PHPUnit\Framework\AssertionFailedError;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Server;
 use ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools\Example;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
-use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ApiRoute;
-use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ConstantlessController;
-use ZeroToProd\LaravelOpenapi\Tests\Fixtures\ConstantlessSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\EnumConstructedSchema;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SecureArticleController;
@@ -148,92 +145,27 @@ it('treats an empty topic as no topic at all', function (): void {
         ->assertDontSee('There is no');
 });
 
-it('says nothing about a local convention when the project uses the package attribute', function (): void {
-    Server::tool(Example::class)->assertDontSee('## Local convention — read this first');
-});
-
-it('names the project-local subclass ahead of the generic shape', function (): void {
+it('says nothing about the attribute classes the project happens to use', function (): void {
     Route::get('enum-constructed', EnumConstructedController::class);
-
-    $text = text();
-
-    expect($text)
-        ->toContain('## Local convention — read this first')
-        ->toContain('on 1 of 5 documented routes:')
-        ->toContain(EnumConstructedSchema::class)
-        ->toContain('__construct('.ApiRoute::class.' $ApiRoute)')
-        ->and(strpos($text, '## Local convention'))->toBeLessThan((int) strpos($text, '# Documenting an endpoint'));
-});
-
-it('leaves out the fragment a constructor would not take, rather than printing it disclaimed', function (): void {
-    Route::get('enum-constructed', EnumConstructedController::class);
-
-    Server::tool(Example::class)
-        ->assertSee([
-            'It takes no OpenAPI fragment of its own: the fragments live in const paths',
-            'The generic #[ApiSchema] fragment is left out here',
-            '`{"topic": "attribute"}` prints the generic shape anyway',
-            '# Documenting an endpoint',
-            'Four rules decide whether the tests pass:',
-        ])
-        ->assertDontSee(['#[ApiSchema([', 'does not apply verbatim', 'The shape below still describes']);
-});
-
-it('prints one existing entry to copy in place of the fragment it left out', function (): void {
-    Route::get('enum-constructed', EnumConstructedController::class);
-
-    Server::tool(Example::class)->assertSee([
-        'One entry to copy, the one '.EnumConstructedController::class.'::__invoke declares:',
-        "    '/enum-constructed' => [",
-        "'operationId' => 'getEnumConstructed',",
-    ]);
-});
-
-it('still serves the generic shape on request, so leaving it out costs nothing', function (): void {
-    Route::get('enum-constructed', EnumConstructedController::class);
-
-    Server::tool(Example::class, ['topic' => 'attribute'])->assertSee([
-        '## Local convention — read this first',
-        '#[ApiSchema([',
-    ]);
-});
-
-it('points at the call site when the subclass keeps its fragments in no constant', function (): void {
-    Route::get('constantless', ConstantlessController::class);
-
-    Server::tool(Example::class)
-        ->assertSee([
-            ConstantlessSchema::class,
-            'It takes no OpenAPI fragment, so write the attribute the way its one existing call site does:',
-            ConstantlessController::class.'::__invoke',
-        ])
-        ->assertDontSee('#[ApiSchema([');
-});
-
-it('says the generic example applies directly when the subclass takes a fragment', function (): void {
     Route::get('sub', SubclassSchemaController::class);
 
     Server::tool(Example::class)
-        ->assertSee([
+        ->assertSee('# Documenting an endpoint')
+        ->assertDontSee([
+            '## Local convention',
+            EnumConstructedSchema::class,
             SubApiSchema::class,
-            '__construct(array $schema)',
-            'It takes an OpenAPI fragment, so the shape below applies as written',
-        ])
-        ->assertDontSee('does not apply verbatim');
+            'One entry to copy',
+        ]);
 });
 
-it('prepends the convention to the topics that show the attribute, and to nothing else', function (string $topic, bool $expected): void {
+it('serves the same generic shape whatever the project already declares', function (): void {
+    $generic = text();
+
     Route::get('enum-constructed', EnumConstructedController::class);
 
-    expect(str_contains(text(['topic' => $topic]), '## Local convention'))->toBe($expected);
-})->with([
-    ['attribute', true],
-    ['all', true],
-    ['start', true],
-    ['rules', false],
-    ['failures', false],
-    ['security', false],
-]);
+    expect(text())->toBe($generic);
+});
 
 it('walks an agent through every step of the workflow', function (): void {
     expect(Example::content())

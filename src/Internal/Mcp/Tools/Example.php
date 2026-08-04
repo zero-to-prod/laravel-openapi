@@ -9,15 +9,13 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Override;
-use ZeroToProd\LaravelOpenapi\Internal\LocalConvention;
-use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 /** @internal */
 class Example extends Tool
 {
     protected string $name = 'example';
 
-    protected string $description = 'How to document and test an endpoint. Defaults to `start`: the attribute shape, this project\'s own attribute convention, and the rules that cost a test cycle. A topic for one part, `all` for everything.';
+    protected string $description = 'How to document and test an endpoint. Defaults to `start`: the attribute shape and the rules that cost a test cycle. A topic for one part, `all` for everything.';
 
     private const string HEADING = <<<'MARKDOWN'
         # Implementing and testing an endpoint
@@ -37,11 +35,6 @@ class Example extends Tool
      * test cycle, then where to go when one does. Diagnosis lives in `rules`
      * and `failures`, which an agent that has not run a test yet should not be
      * paying for.
-     *
-     * The halves are separate because the shape is the part that can be wrong
-     * for a project. An attribute whose constructor takes something other than
-     * a fragment cannot be written this way, and printing it there would cost
-     * an agent the largest block on the page to be told to ignore it.
      */
     private const string START_SHAPE = <<<'MARKDOWN'
         # Documenting an endpoint
@@ -79,16 +72,6 @@ class Example extends Tool
         ])]
         public function __invoke(string $id): JsonResponse
         ```
-        MARKDOWN;
-
-    /** Printed in place of the shape, so the heading survives and nothing is missing silently. */
-    private const string START_OMITTED = <<<'MARKDOWN'
-        # Documenting an endpoint
-
-        The generic #[ApiSchema] fragment is left out here: this project's attribute
-        does not take one, so it would not compile. Follow the convention above.
-        `{"topic": "attribute"}` prints the generic shape anyway, and every rule
-        below applies either way — what a fragment may contain does not change.
         MARKDOWN;
 
     private const string START_RULES = <<<'MARKDOWN'
@@ -625,41 +608,26 @@ class Example extends Tool
     {
         return [
             'topic' => $schema->string()->description(
-                'Defaults to `start`: the shape, the local convention and the rules. Others: setup, '
+                'Defaults to `start`: the shape and the rules. Others: setup, '
                 .'attribute, routing, testing, coverage, requestBody, security, rules, failures, all.'
             ),
         ];
     }
 
-    public function handle(Request $request, SchemaGenerator $SchemaGenerator): Response
+    public function handle(Request $request): Response
     {
         $topic = $request->get('topic');
         $topic = is_string($topic) && $topic !== '' ? $topic : 'start';
 
-        if ($topic !== 'attribute' && isset(self::SECTIONS[$topic])) {
+        if (isset(self::SECTIONS[$topic])) {
             return Response::text(self::SECTIONS[$topic]);
         }
 
-        $conventions = LocalConvention::all($SchemaGenerator->inventory());
-        $subclasses = LocalConvention::subclasses($conventions);
-        $convention = $subclasses[0] ?? null;
-        $preamble = $convention === null
-            ? null
-            : $this->convention($convention, LocalConvention::documented($conventions));
-
         if ($topic === 'all') {
-            return Response::text($this->prepend($preamble, self::content()));
+            return Response::text(self::content());
         }
 
-        if ($topic === 'attribute') {
-            return Response::text($this->prepend($preamble, self::SECTIONS['attribute']));
-        }
-
-        $start = $this->prepend($preamble, implode("\n\n", [
-            $convention?->indirect() === true ? self::START_OMITTED : self::START_SHAPE,
-            self::START_RULES,
-            $this->index(),
-        ]));
+        $start = implode("\n\n", [self::START_SHAPE, self::START_RULES, $this->index()]);
 
         return Response::text(
             $topic === 'start' ? $start : sprintf("There is no `%s` topic.\n\n%s", $topic, $start)
@@ -669,53 +637,6 @@ class Example extends Tool
     public static function content(): string
     {
         return implode("\n\n", [self::HEADING, ...array_values(self::SECTIONS)]);
-    }
-
-    private function convention(LocalConvention $convention, int $documented): string
-    {
-        $file = $convention->file();
-        $signature = $convention->signature();
-        $indirect = $convention->indirect();
-        $fragment = $indirect ? $convention->fragment() : null;
-
-        return implode("\n\n", array_values(array_filter([
-            '## Local convention — read this first',
-
-            sprintf(
-                'This project uses its own #[ApiSchema] subclass, on %d of %d documented routes:',
-                $convention->count,
-                $documented,
-            ),
-
-            implode("\n", array_filter([
-                '    '.$convention->class.($file === null ? '' : '        ('.$file.')'),
-                $signature === null ? '' : '    '.$signature,
-            ])),
-
-            match (true) {
-                $convention->takesFragment() => 'It takes an OpenAPI fragment, so the shape below applies as written — just use the subclass name.',
-                $indirect => $convention->storage() ?? sprintf(
-                    "It takes no OpenAPI fragment, so write the attribute the way its one existing call site does:\n\n    %s",
-                    $convention->action,
-                ),
-                default => sprintf("Read that class and one call site first:\n\n    %s", $convention->action),
-            },
-
-            $fragment === null ? '' : sprintf(
-                "One entry to copy, the one %s declares:\n\n```php\n%s\n```",
-                $convention->action,
-                $fragment,
-            ),
-
-            $indirect
-                ? 'The rules below still apply.'
-                : 'The shape below still describes what ends up in the document, and the rules still apply.',
-        ])));
-    }
-
-    private function prepend(?string $preamble, string $content): string
-    {
-        return $preamble === null ? $content : $preamble."\n\n".$content;
     }
 
     private function index(): string

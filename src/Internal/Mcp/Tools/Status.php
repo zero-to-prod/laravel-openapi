@@ -11,7 +11,6 @@ use Laravel\Mcp\Server\Tool;
 use Override;
 use Symfony\Component\Process\Process;
 use Throwable;
-use ZeroToProd\LaravelOpenapi\Internal\LocalConvention;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
@@ -24,23 +23,14 @@ class Status extends Tool
 {
     private const int TIMEOUT = 30;
 
-    private const string MIDDLEWARE = <<<'MARKDOWN'
-        Middleware decides which statuses a route can return. An authenticating one
-        means declaring `security`, and the failures it produces — 401, and 403 where
-        an ability is required — and a test that sends `->withToken('any-value')`,
-        without which neither can be exercised.
-        MARKDOWN;
-
     private const string STALE = <<<'MARKDOWN'
-        !! Could not read the application from a fresh process, so what follows
-           reflects it as it was when this MCP server started. Attributes added
-           or edited since then are invisible here, and so are new routes.
-           Restart the server, or run `php artisan openapi:inventory` in a shell.
+        !! stale: no fresh process, so this reflects the application as it was when
+           the MCP server started. Restart it, or run `php artisan openapi:inventory`.
         MARKDOWN;
 
     protected string $name = 'status';
 
-    protected string $description = 'Routes that declare no schema, with the middleware each runs, this project\'s own attribute convention and one entry to copy; plus declared responses no test exercised. Call it to plan the work, and again to confirm it is done.';
+    protected string $description = 'Routes that declare no schema, with the middleware each runs and the attribute classes already in use; plus declared responses no test exercised.';
 
     /** @return array<string, mixed> */
     #[Override]
@@ -211,40 +201,35 @@ class Status extends Tool
 
         $documented = count($entries) - count($closures) - count($undocumented);
 
-        $sections = array_values(array_filter([
+        $sections = array_filter([
             '# Schema status',
             $stale ? self::STALE : '',
-            implode("\n", array_filter([
-                $prefix === null ? '' : sprintf('Scope: routes under %s.', $prefix),
-                sprintf(
-                    'Routes: %d in scope, %d documented, %d undocumented.',
-                    count($entries),
-                    $documented,
-                    count($undocumented),
-                ),
-                sprintf('Responses: %d declared, %d never exercised.', count($declared), count($missing)),
-            ])),
-        ]));
+        ]);
 
         if ($entries === []) {
             $sections[] = $prefix === null
-                ? 'No routes are registered at all, so there is nothing to document.'
-                : sprintf('No registered route starts with %s. Check the prefix, or omit it to see every route.', $prefix);
+                ? 'routes: 0 registered.'
+                : sprintf('routes: 0 matching %s.', $prefix);
 
             return $this->join($sections);
         }
 
-        $conventions = LocalConvention::all($entries, $this->methods($undocumented));
-        $subclasses = LocalConvention::subclasses($conventions);
-
-        if ($conventions !== []) {
-            $sections[] = $this->convention($conventions, $subclasses, $undocumented !== []);
-        }
+        $sections[] = implode("\n", array_values(array_filter([
+            $prefix === null ? '' : 'scope: '.$prefix,
+            sprintf(
+                'routes: %d, documented %d, undocumented %d, closure %d',
+                count($entries),
+                $documented,
+                count($undocumented),
+                count($closures),
+            ),
+            sprintf('responses: %d declared, %d unexercised', count($declared), count($missing)),
+            $this->attributes($entries),
+        ])));
 
         if ($undocumented !== []) {
             $sections[] = $this->section(
                 sprintf('## Undocumented routes (%d)', count($undocumented)),
-                $this->instruction($subclasses, $undocumented),
                 array_map(
                     fn (array $entry): string => sprintf(
                         '%s %s — %s%s',
@@ -260,21 +245,20 @@ class Status extends Tool
 
         if ($missing !== []) {
             $sections[] = $this->section(
-                sprintf('## Declared responses no test exercised (%d)', count($missing)),
-                SchemaCoverage::exercised() === []
-                    ? sprintf(
-                        'No coverage is recorded at all, so this lists every declared response rather than the gaps. Run the test suite first: it writes %s, which this tool reads.',
-                        SchemaCoverage::path(),
-                    )
-                    : 'Each one needs a test that passes the response through assertMatchesSchema(). Until then `openapi:coverage` fails.',
+                sprintf(
+                    '## Declared responses no test exercised (%d)%s',
+                    count($missing),
+                    SchemaCoverage::exercised() === []
+                        ? sprintf(' — no coverage recorded at all, so this is every declared response; the suite writes %s', SchemaCoverage::path())
+                        : '',
+                ),
                 $missing,
             );
         }
 
         if ($closures !== []) {
             $sections[] = $this->section(
-                sprintf('## Routes that cannot be documented (%d)', count($closures)),
-                'A closure cannot carry an attribute. Move each to a controller method to document it.',
+                sprintf('## Closure routes (%d) — cannot carry an attribute', count($closures)),
                 array_map(
                     static fn (array $entry): string => implode('|', $entry['methods']).' '.$entry['uri'],
                     $closures,
@@ -282,27 +266,35 @@ class Status extends Tool
             );
         }
 
-        if ($undocumented === [] && $missing === [] && $declared !== []) {
-            $sections[] = 'Every route in scope declares a schema, and every response it declares was exercised.';
-        }
-
-        if ($declared === []) {
-            $sections[] = 'Nothing in scope declares a response yet, so there is no coverage to report.';
-        }
-
         return $this->join($sections);
     }
 
     /**
+     * The attribute classes documented routes in scope carry, counted. Reported
+     * as the state it is, without ranking one as the shape to follow: which
+     * class a new route should use is a call this tool cannot make.
+     *
      * @param  list<Entry>  $entries
-     * @return list<string>
      */
-    private function methods(array $entries): array
+    private function attributes(array $entries): string
     {
-        return array_values(array_unique(array_merge(
-            [],
-            ...array_map(static fn (array $entry): array => $entry['methods'], $entries),
-        )));
+        $counts = [];
+
+        foreach ($entries as $entry) {
+            if ($entry['documented'] && $entry['attribute'] !== null) {
+                $counts[$entry['attribute']] = ($counts[$entry['attribute']] ?? 0) + 1;
+            }
+        }
+
+        arsort($counts);
+
+        $names = [];
+
+        foreach ($counts as $class => $count) {
+            $names[] = sprintf('%s (%d)', $class, $count);
+        }
+
+        return $names === [] ? '' : 'attributes in use: '.implode(', ', $names);
     }
 
     /** @param  Entry  $entry */
@@ -314,100 +306,14 @@ class Status extends Tool
             return basename(str_replace('\\', '/', $parts[0])).(isset($parts[1]) ? ':'.$parts[1] : '');
         }, $entry['middleware']);
 
-        return $names === [] ? '' : "\n  middleware: ".implode(', ', $names);
-    }
-
-    /**
-     * @param  list<LocalConvention>  $conventions
-     * @param  list<LocalConvention>  $subclasses
-     * @param  bool  $outstanding  Whether anything in scope still has to be written, which is what an
-     *                             entry to copy is for. The call that confirms the work is done needs none.
-     */
-    private function convention(array $conventions, array $subclasses, bool $outstanding): string
-    {
-        $documented = LocalConvention::documented($conventions);
-
-        if ($subclasses === []) {
-            return $this->join([
-                '## Local convention',
-                sprintf(
-                    "Documented routes in scope: %d, all using the package's #[ApiSchema] directly.\n"
-                    .'Call `example` with {"topic": "attribute"} for the shape.',
-                    $documented,
-                ),
-            ]);
-        }
-
-        if (count($subclasses) > 1) {
-            return $this->section(
-                '## Local convention',
-                'More than one attribute class is in use. Follow whichever the file you are editing already uses, not the generic shape in `example`.',
-                array_map(
-                    static fn (LocalConvention $convention): string => sprintf(
-                        '%s — %d, e.g. %s%s',
-                        $convention->class,
-                        $convention->count,
-                        $convention->action,
-                        $convention->file() === null ? '' : ' ('.$convention->file().')',
-                    ),
-                    $conventions,
-                ),
-            );
-        }
-
-        $convention = $subclasses[0];
-        $file = $convention->file();
-        $signature = $convention->signature();
-        $storage = $convention->indirect() ? $convention->storage() : null;
-        $fragment = $convention->indirect() && $outstanding ? $convention->fragment() : null;
-
-        return $this->join(array_values(array_filter([
-            '## Local convention',
-            sprintf(
-                '%s is the attribute this project uses: a project-local #[ApiSchema] subclass, '
-                .'on %d of %d documented routes%s.',
-                $convention->class,
-                $convention->count,
-                $documented,
-                $file === null ? '' : ', declared at '.$file,
-            ),
-            $signature === null ? '' : '    '.$signature,
-            $storage ?? sprintf(
-                'Follow it, not the generic shape in `example`. Read %s and one call site — %s — first.',
-                $file === null ? 'that class' : 'that file',
-                $convention->action,
-            ),
-            $fragment === null ? '' : sprintf(
-                "One entry to copy, the one %s declares:\n\n```php\n%s\n```",
-                $convention->action,
-                $fragment,
-            ),
-        ])));
-    }
-
-    /**
-     * @param  list<LocalConvention>  $subclasses
-     * @param  list<Entry>  $undocumented
-     */
-    private function instruction(array $subclasses, array $undocumented): string
-    {
-        $attribute = match (true) {
-            $subclasses === [] => 'Add an #[ApiSchema] attribute to each method below. Call the `example` tool for the shape it takes.',
-            count($subclasses) === 1 => sprintf('Add a #[%s] attribute to each method below, following the local convention above.', $subclasses[0]->shortName()),
-            default => 'Add an attribute to each method below, following the local convention above.',
-        };
-
-        $middleware = array_filter($undocumented, static fn (array $entry): bool => $entry['middleware'] !== []);
-
-        return $middleware === [] ? $attribute : $attribute."\n\n".self::MIDDLEWARE;
+        return $names === [] ? '' : ' ['.implode(', ', $names).']';
     }
 
     /** @param  list<string>  $items */
-    private function section(string $heading, string $instruction, array $items): string
+    private function section(string $heading, array $items): string
     {
         return $this->join([
             $heading,
-            $instruction,
             implode("\n", array_map(static fn (string $item): string => '- '.$item, $items)),
         ]);
     }
