@@ -141,3 +141,19 @@ it('prints a readable listing when asked for no particular format', function ():
         ->and($output)->toContain('[ ] POST /articles/{id}/publish — '.UndocumentedController::class.'::__invoke')
         ->and($output)->toContain('[ ] GET /health — closure');
 });
+
+it('emits the merged document as one line of JSON, for the tools that report it', function (): void {
+    Route::get('articles/{id}', ShowArticleController::class);
+
+    [$status, $output] = inventory(['--document' => true]);
+
+    $lines = array_values(array_filter(explode("\n", trim($output))));
+
+    expect($status)->toBe(0)->and($lines)->toHaveCount(1);
+
+    $document = json_decode($lines[0], true, 512, JSON_THROW_ON_ERROR);
+
+    expect($document)->toHaveKeys(['openapi', 'info', 'paths'])
+        ->and($document['paths'])->toHaveKey('/articles/{id}')
+        ->and($document['paths']['/articles/{id}']['get']['operationId'])->toBe('showArticle');
+});

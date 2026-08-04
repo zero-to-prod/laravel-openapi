@@ -9,20 +9,17 @@ use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Override;
-use Symfony\Component\Process\Process;
-use Throwable;
+use ZeroToProd\LaravelOpenapi\Internal\Inventory;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 /**
  * @internal
  *
- * @phpstan-type Entry array{uri: string, methods: list<string>, action: string|null, middleware: list<string>, documented: bool, attribute: string|null, schema: array<string, mixed>}
+ * @phpstan-import-type Entry from Inventory
  */
 class Status extends Tool
 {
-    private const int TIMEOUT = 30;
-
     private const string STALE = <<<'MARKDOWN'
         !! stale: no fresh process, so this reflects the application as it was when
            the MCP server started. Restart it, or run `php artisan openapi:inventory`.
@@ -48,7 +45,7 @@ class Status extends Tool
         $path = $request->get('path');
         $prefix = is_string($path) && trim($path, '/') !== '' ? '/'.trim($path, '/') : null;
 
-        $fresh = $this->fromFreshProcess();
+        $fresh = Inventory::entries();
 
         $entries = array_values(array_filter(
             $fresh ?? $SchemaGenerator->inventory(),
@@ -81,109 +78,6 @@ class Status extends Tool
         $paths = $entry['schema']['paths'] ?? null;
 
         return is_array($paths) ? $paths : [];
-    }
-
-    /** @return list<Entry>|null Null when the subprocess could not be trusted. */
-    private function fromFreshProcess(): ?array
-    {
-        $artisan = base_path('artisan');
-
-        if (! is_file($artisan)) {
-            return null;
-        }
-
-        $Process = new Process([PHP_BINARY, $artisan, 'openapi:inventory', '--json'], base_path());
-        $Process->setTimeout(self::TIMEOUT);
-
-        // @codeCoverageIgnoreStart
-        try {
-            $Process->run();
-        } catch (Throwable) {
-            return null;
-        }
-        // @codeCoverageIgnoreEnd
-
-        return $Process->isSuccessful() ? $this->decode($Process->getOutput()) : null;
-    }
-
-    /** @return list<Entry>|null */
-    private function decode(string $output): ?array
-    {
-        foreach (array_reverse(preg_split('/\R/', trim($output)) ?: []) as $line) {
-            $decoded = json_decode(trim($line), true);
-
-            if (is_array($decoded)) {
-                return $this->entries($decoded);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<mixed>  $decoded
-     * @return list<Entry>|null
-     */
-    private function entries(array $decoded): ?array
-    {
-        $entries = [];
-
-        foreach ($decoded as $entry) {
-            if (! is_array($entry)
-                || ! is_string($entry['uri'] ?? null)
-                || ! is_array($entry['methods'] ?? null)
-                || ! is_array($entry['middleware'] ?? [])
-                || ! is_bool($entry['documented'] ?? null)
-                || ! is_array($entry['schema'] ?? null)
-                || ! is_string($entry['action'] ?? null) && ($entry['action'] ?? null) !== null
-            ) {
-                return null;
-            }
-
-            $attribute = $entry['attribute'] ?? null;
-
-            if ($attribute !== null && ! is_string($attribute)) {
-                return null;
-            }
-
-            $methods = [];
-
-            foreach ($entry['methods'] as $method) {
-                if (! is_string($method)) {
-                    return null;
-                }
-
-                $methods[] = $method;
-            }
-
-            $middleware = [];
-
-            foreach ($entry['middleware'] ?? [] as $name) {
-                if (! is_string($name)) {
-                    return null;
-                }
-
-                $middleware[] = $name;
-            }
-
-            $schema = [];
-
-            foreach ($entry['schema'] as $key => $value) {
-                $schema[(string) $key] = $value;
-            }
-
-            $entries[] = [
-                'uri' => $entry['uri'],
-                'methods' => $methods,
-                'action' => $entry['action'] ?? null,
-                'middleware' => $middleware,
-                'documented' => $entry['documented'],
-                'attribute' => $attribute,
-                'schema' => $schema,
-            ];
-        }
-
-        return $entries;
     }
 
     /**

@@ -15,11 +15,6 @@ use ZeroToProd\LaravelOpenapi\Tests\Fixtures\SubclassSchemaController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndocumentedController;
 
 beforeEach(function (): void {
-    // Tells the Testbench skeleton's bootstrap where `vendor/` and
-    // `testbench.yaml` live, so the process the tool spawns can boot the
-    // package. `putenv()` alone would not reach the child: Symfony\Process
-    // keeps only the `getenv()` values whose keys already exist in $_SERVER,
-    // then merges $_ENV over the top.
     $_ENV['TESTBENCH_WORKING_PATH'] = dirname(__DIR__, 2);
 
     config(['openapi.coverage.path' => sys_get_temp_dir().'/openapi-status-test/coverage.jsonl']);
@@ -28,58 +23,12 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     SchemaCoverage::purge();
-
-    foreach (glob(sys_get_temp_dir().'/openapi-status-base-*') ?: [] as $directory) {
-        array_map(unlink(...), glob($directory.'/*') ?: []);
-        rmdir($directory);
-    }
+    purgeBasePaths();
 });
 
 function status(array $arguments = []): TestResponse
 {
     return Server::tool(Status::class, $arguments)->assertOk()->assertHasNoErrors();
-}
-
-/**
- * Points the application at a base path holding the given `artisan`, or none at
- * all. The tool shells out to `artisan openapi:inventory` for a reading that a
- * long-lived process cannot give; every scenario below registers its routes in
- * *this* process, which a fresh one would never see, so they run against the
- * in-process fallback instead.
- */
-function withArtisan(?string $script): string
-{
-    $directory = sys_get_temp_dir().'/openapi-status-base-'.bin2hex(random_bytes(6));
-
-    mkdir($directory, 0755, true);
-
-    if ($script !== null) {
-        file_put_contents($directory.'/artisan', $script);
-    }
-
-    app()->setBasePath($directory);
-
-    return $directory;
-}
-
-function withoutFreshProcess(): void
-{
-    withArtisan(null);
-}
-
-/**
- * Points the application at the package root, which carries no `artisan`, so
- * the in-process fallback still runs but paths under it render relative.
- */
-function withRepositoryAsBasePath(): void
-{
-    app()->setBasePath(dirname(__DIR__, 2));
-}
-
-/** An `artisan` printing the given inventory, and nothing else. */
-function withInventory(array $entries): void
-{
-    withArtisan('<?php echo '.var_export(json_encode($entries, JSON_THROW_ON_ERROR), true).';');
 }
 
 it('describes the tool so an agent knows when to call it', function (): void {
