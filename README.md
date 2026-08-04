@@ -160,7 +160,7 @@ ApiSchema::routes('docs/openapi.json', 'docs.schema')->middleware('throttle:60,1
 ```
 
 Moving the endpoint does not move how it is documented: the document always describes this route as `/openapi.json`. Keep the two in
-step, or accept that the document describes the old path.
+step, or accept that the document describes the old path — [`openapi:validate`](#schema-validation) reports the drift either way.
 
 ## Validation
 
@@ -179,6 +179,24 @@ php artisan openapi:validate
 ```
 
 On failure it lists the specification errors and exits non-zero; on success it exits `0`, which makes it useful in a build pipeline.
+
+Two things the specification cannot tell you are checked alongside it, and every problem is reported in the same run:
+
+- A `security` requirement names a scheme; it does not `$ref` one, so a requirement naming a scheme no attribute declares is a valid
+  document that fails on every request. The command names the operation instead.
+- A declared path is a string, and an attribute on a route at `/foo` may declare `/bar`. The command checks each declared path against
+  the route the attribute annotates and names both:
+
+```
+The attribute on App\Http\Controllers\MessageUpdateController::__invoke declares [/api/messages/{message_id}]
+but the route it annotates is [PATCH /api/messages/{id}].
+```
+
+Declared paths resolve against the first `openapi.servers` URL, so with a base of `/api` an attribute declares `/messages` and not
+`/api/messages`; the error names the resolved path when a base applies. Placeholders compare by name, so `{id}` against `{message_id}`
+is a mismatch while the `{id?}` and `{user:slug}` a route may write are not. An attribute declaring several paths is reported only when
+none of them is its own route. Set `openapi.validation.declared_paths` to `false` for a document deliberately decoupled from the routes
+this application serves.
 
 ### Behavior validation
 

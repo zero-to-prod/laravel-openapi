@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Internal\Mcp\Tools;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Support\Facades\Config;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Override;
+use ZeroToProd\LaravelOpenapi\Internal\DeclaredPaths;
 use ZeroToProd\LaravelOpenapi\Internal\Inventory;
 use ZeroToProd\LaravelOpenapi\Internal\SchemaCoverage;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
@@ -27,7 +29,7 @@ class Status extends Tool
 
     protected string $name = 'status';
 
-    protected string $description = 'Routes that declare no schema, with the middleware each runs and the attribute classes already in use; plus declared responses no test exercised.';
+    protected string $description = 'Routes that declare no schema, with the middleware each runs and the attribute classes already in use; plus declared paths that do not match the route they annotate, and declared responses no test exercised.';
 
     /** @return array<string, mixed> */
     #[Override]
@@ -66,6 +68,10 @@ class Status extends Tool
             SchemaCoverage::declared($document),
             SchemaCoverage::missing($document),
             $fresh === null,
+            // The entries come from a fresh process; the `servers` they resolve
+            // against come from this one. A base changed since the server
+            // started is the same staleness the notice above already covers.
+            DeclaredPaths::check($entries, array_values(Config::array('openapi.openapi.servers', []))),
         ));
     }
 
@@ -84,8 +90,9 @@ class Status extends Tool
      * @param  list<Entry>  $entries
      * @param  list<string>  $declared
      * @param  list<string>  $missing
+     * @param  array{errors: list<string>, skipped: string|null}  $declaredPaths
      */
-    private function render(?string $prefix, array $entries, array $declared, array $missing, bool $stale): string
+    private function render(?string $prefix, array $entries, array $declared, array $missing, bool $stale, array $declaredPaths): string
     {
         $closures = array_values(array_filter($entries, static fn (array $entry): bool => $entry['action'] === null));
         $undocumented = array_values(array_filter(
@@ -134,6 +141,15 @@ class Status extends Tool
                     ),
                     $undocumented,
                 ),
+            );
+        }
+
+        if ($declaredPaths['skipped'] !== null) {
+            $sections[] = $declaredPaths['skipped'];
+        } elseif ($declaredPaths['errors'] !== []) {
+            $sections[] = $this->section(
+                sprintf('## Declared paths that do not match their route (%d)', count($declaredPaths['errors'])),
+                $declaredPaths['errors'],
             );
         }
 

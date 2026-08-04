@@ -281,6 +281,49 @@ it('separates closure routes, which cannot carry an attribute', function (): voi
     ]);
 });
 
+it('names a declared path that is not the path of the route it annotates', function (): void {
+    withoutFreshProcess();
+    Route::get('articles/{article_id}', ShowArticleController::class);
+
+    status()->assertSee([
+        '## Declared paths that do not match their route (1)',
+        'declares [/articles/{id}]',
+        'but the route it annotates is [GET /articles/{article_id}]',
+    ]);
+});
+
+it('reports the path mismatch above the coverage it causes', function (): void {
+    withoutFreshProcess();
+    Route::get('articles/{article_id}', ShowArticleController::class);
+
+    // The unexercised responses are a symptom: no request can reach an operation
+    // declared at a path nothing serves. The cause has to be read first.
+    $text = mcpText(status());
+
+    expect(strpos($text, '## Declared paths'))
+        ->toBeLessThan(strpos($text, '## Declared responses'));
+});
+
+it('says nothing about declared paths when every attribute sits on its own route', function (): void {
+    withoutFreshProcess();
+    Route::get('articles/{id}', ShowArticleController::class);
+
+    status()->assertDontSee('## Declared paths that do not match their route');
+});
+
+it('says the path check was skipped rather than staying quiet about it', function (): void {
+    $this->withConfig([
+        'openapi.openapi.servers' => [['url' => 'https://{tenant}.example.com']],
+        'openapi.coverage.path' => sys_get_temp_dir().'/openapi-status-test/coverage.jsonl',
+    ]);
+    withoutFreshProcess();
+    Route::get('articles/{article_id}', ShowArticleController::class);
+
+    status()
+        ->assertSee('a server URL carries a {variable}')
+        ->assertDontSee('## Declared paths that do not match their route');
+});
+
 it('does not claim missing coverage when nothing in scope declares a response', function (): void {
     withoutFreshProcess();
     Route::post('api/messages', UndocumentedController::class);

@@ -9,7 +9,9 @@ use cebe\openapi\Reader;
 use cebe\openapi\ReferenceContext;
 use cebe\openapi\spec\OpenApi;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use Throwable;
+use ZeroToProd\LaravelOpenapi\Internal\DeclaredPaths;
 use ZeroToProd\LaravelOpenapi\SchemaGenerator;
 
 /** @internal */
@@ -36,11 +38,13 @@ class ValidateSchemaCommand extends Command
 
         $document = $SchemaGenerator->document();
 
-        // The security check reads the raw array and needs nothing from cebe,
-        // so it runs even when the reader gives up. Reporting both at once is
-        // the point of this command: a document with a structural fault and a
-        // dangling scheme should cost one run to diagnose, not two.
-        $errors = $this->securityErrors($document);
+        // The security and declared-path checks read the raw array and need
+        // nothing from cebe, so they run even when the reader gives up.
+        // Reporting everything at once is the point of this command: a document
+        // with a structural fault and a dangling scheme should cost one run to
+        // diagnose, not two.
+        $declaredPaths = $this->declaredPaths($SchemaGenerator, $document);
+        $errors = [...$this->securityErrors($document), ...$declaredPaths['errors']];
 
         try {
             $specification = Reader::readFromJson(json_encode($document, JSON_THROW_ON_ERROR));
@@ -50,6 +54,10 @@ class ValidateSchemaCommand extends Command
         }
 
         $version = is_string($document['openapi'] ?? null) ? $document['openapi'] : '3.0';
+
+        if ($declaredPaths['skipped'] !== null) {
+            $this->components->warn($declaredPaths['skipped']);
+        }
 
         if ($errors !== []) {
             $this->components->error(sprintf('The generated document is not a valid OpenAPI %s document.', $version));
@@ -67,6 +75,29 @@ class ValidateSchemaCommand extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A declared path is a string in an attribute, and nothing reconciles it
+     * with the route the attribute sits on. This does, so it can newly fail a
+     * build that passes today; `openapi.validation.declared_paths` is the way
+     * out for a document deliberately decoupled from its routes.
+     *
+     * @param  array<string, mixed>  $document
+     * @return array{errors: list<string>, skipped: string|null}
+     */
+    private function declaredPaths(SchemaGenerator $SchemaGenerator, array $document): array
+    {
+        if (! Config::boolean('openapi.validation.declared_paths', true)) {
+            return ['errors' => [], 'skipped' => null];
+        }
+
+        $servers = $document['servers'] ?? null;
+
+        return DeclaredPaths::check(
+            $SchemaGenerator->inventory(),
+            is_array($servers) ? array_values($servers) : [],
+        );
     }
 
     /** @return list<string> */

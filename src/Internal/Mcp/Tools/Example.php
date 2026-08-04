@@ -281,9 +281,10 @@ class Example extends Tool
             ```
 
             - `openapi:validate` reads the merged document and reports **every**
-              structural problem at once, dangling `$ref`s and security requirements
-              naming a scheme nobody declared included. It exits `1` on failure. It
-              says nothing about whether the document is *true*.
+              problem at once: dangling `$ref`s, security requirements naming a
+              scheme nobody declared, and declared paths that are not the path of
+              the route they annotate. It exits `1` on failure. It says nothing
+              about whether the declared *responses* are true.
             - `openapi:coverage` fails when a declared response was never exercised by
               `assertMatchesSchema()`. `--reset` discards the previous run's record,
               so it belongs before the suite, never between tests.
@@ -569,11 +570,16 @@ class Example extends Tool
               because a fragment is incomplete — an endpoint that would tell you what
               is wrong should not be the one that breaks. `openapi:validate` is the
               check.
-            - **Declared paths are not checked against the routes they annotate.** An
-              attribute on a route at `/foo` may declare `/bar`, and
-              `openapi:validate` passes: the document is well-formed, just untrue.
-              Only the coverage gate catches it — requests to `/foo` resolve to no
-              operation, and `/bar` is never exercised, so coverage fails.
+            - **A declared path has to be the path of the route it annotates.** An
+              attribute on a route at `/foo` declaring `/bar` is a well-formed
+              document that is untrue, so `openapi:validate` checks the two against
+              each other and names both strings. Declared paths resolve against the
+              first `servers` URL, so a base of `/api` means declaring `/messages`,
+              not `/api/messages`. Placeholders compare by name — `{id}` against
+              `{message_id}` is the bug — while `{id?}` and `{user:slug}` match the
+              `{id}` and `{user}` a declaration spells. Turn the check off with
+              `openapi.validation.declared_paths` for a document deliberately
+              decoupled from these routes.
             MARKDOWN,
 
         'failures' => <<<'MARKDOWN'
@@ -585,7 +591,8 @@ class Example extends Tool
             | The same message naming a `Request` — `... for Request [post /articles]` | The test sent a body the `requestBody` schema rejects, so the response was never looked at. Fix the test, or widen the schema. |
             | `Mentioned security scheme 'x' not found in the given spec` | The operation declares `security` naming `x`, but no attribute declares `components.securitySchemes.x`. `openapi:validate` reports this too, naming the operation. |
             | `None of security schemas did match for Request [get /path]` | The test request carries no credential matching the declared scheme. `actingAs()` fakes the guard without setting a header — add `->withToken('any-value')`. |
-            | `OpenAPI spec contains no such operation [/articles/42,get]` — **two** elements | No declared path matches the request at all. Either nothing declares that path, or a placeholder is spelled differently from the route parameter. |
+            | `OpenAPI spec contains no such operation [/articles/42,get]` — **two** elements | No declared path matches the request at all. Either nothing declares that path, or a placeholder is spelled differently from the route parameter. `openapi:validate` tells you which, naming the declaration and the route side by side. |
+            | `The attribute on X declares [/a] but the route it annotates is [GET /b].` | The declaration and the route it sits on are different paths, so every request to the route resolves to no operation. Fix whichever of the two is wrong. |
             | `OpenAPI spec contains no such operation [/undeclared-status,get,418]` — **three** elements | The path and method are declared; that status is not. Add it to `responses`. |
             | `The response was not produced by an HTTP test request, so no operation can be resolved.` | The `TestResponse` was constructed directly. It has to come from `getJson()`, `postJson()` and friends, which is where the request comes from. |
             | `Matching responses against the schema requires league/openapi-psr7-validator.` | Step 1's dev dependencies are missing. |

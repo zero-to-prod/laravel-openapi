@@ -66,6 +66,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Validation
+    |--------------------------------------------------------------------------
+    |
+    | `declared_paths` makes `openapi:validate` check every declared path
+    | against the route the attribute annotates, so a renamed placeholder or a
+    | prefix the `servers` base already adds fails there rather than at test
+    | time, where the message names the concrete path and not the declaration.
+    |
+    | Turn it off if the document is deliberately decoupled from the routes
+    | this application serves.
+    |
+    */
+
+    'validation' => [
+        'declared_paths' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | MCP Server
     |--------------------------------------------------------------------------
     |
