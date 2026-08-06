@@ -5,16 +5,6 @@ declare(strict_types=1);
 namespace ZeroToProd\LaravelOpenapi\Internal;
 
 /**
- * Checks that each attribute declares the path of the route it annotates.
- *
- * Nothing else does, and the checks that exist point somewhere other than the
- * declaration: cebe reads the document on its own terms and never sees a route,
- * league reports the concrete path a request could not match rather than the
- * template one character away from matching it, and the coverage gate blames
- * the responses of an operation no request could reach. So a placeholder
- * renamed between the route and the attribute costs a hunt for a missing
- * declaration that is in fact right there.
- *
  * @internal
  *
  * @phpstan-import-type Entry from Inventory
@@ -52,10 +42,6 @@ final class DeclaredPaths
     }
 
     /**
-     * The path component of each server URL, which is the only part a declared
-     * path resolves against. Null when a URL carries a `{variable}`: the base is
-     * not knowable statically, and a guess at it invents mismatches.
-     *
      * @param  list<mixed>  $servers
      * @return list<string>|null
      */
@@ -80,8 +66,6 @@ final class DeclaredPaths
             $bases[] = $path === '' ? '' : '/'.$path;
         }
 
-        // No server at all says what a single server at the root says, which is
-        // the OpenAPI default: declared paths are the paths themselves.
         return $bases === [] ? [''] : array_values(array_unique($bases));
     }
 
@@ -91,8 +75,6 @@ final class DeclaredPaths
      */
     private static function error(array $entry, array $bases): ?string
     {
-        // A route with no attribute declares nothing to be wrong about, and a
-        // closure route cannot carry one.
         if (! $entry['documented'] || $entry['action'] === null) {
             return null;
         }
@@ -119,8 +101,6 @@ final class DeclaredPaths
                     continue;
                 }
 
-                // A path item declaring no operation at all has no method to
-                // disagree with the route about, so the path matching is enough.
                 if ($operations === [] || array_intersect($methods, $operations) !== []) {
                     return null;
                 }
@@ -131,18 +111,11 @@ final class DeclaredPaths
             }
         }
 
-        // An attribute may legitimately declare several paths, so this reports
-        // only when none of them is the route it sits on.
         return $wrongMethod === []
             ? self::pathError($entry, $declared, $bases)
             : self::message($entry, $wrongMethod);
     }
 
-    /**
-     * `{id?}` and `{user:slug}` both bind the parameter `{id}` and `{user}`
-     * name, and a declared path spells neither suffix. Comparing the names is
-     * the point: `{id}` against `{message_id}` is the bug being looked for.
-     */
     private static function placeholders(string $path): string
     {
         return preg_replace('/\{([^:?}]*)[^}]*}/', '{$1}', $path) ?? $path;
@@ -155,10 +128,6 @@ final class DeclaredPaths
      */
     private static function pathError(array $entry, array $declared, array $bases): string
     {
-        // Against the default base the declared path and its resolved form are
-        // the same string, and printing it twice reads as a contradiction. With
-        // a base configured they differ, and the difference is the whole bug:
-        // a document whose paths still carry the prefix its `servers` now adds.
         if ($bases === ['']) {
             return self::message($entry, $declared);
         }

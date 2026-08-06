@@ -68,9 +68,6 @@ class Status extends Tool
             SchemaCoverage::declared($document),
             SchemaCoverage::missing($document),
             $fresh === null,
-            // The entries come from a fresh process; the `servers` they resolve
-            // against come from this one. A base changed since the server
-            // started is the same staleness the notice above already covers.
             DeclaredPaths::check($entries, array_values(Config::array('openapi.openapi.servers', []))),
         ));
     }
@@ -179,13 +176,7 @@ class Status extends Tool
         return $this->join($sections);
     }
 
-    /**
-     * The attribute classes documented routes in scope carry, counted. Reported
-     * as the state it is, without ranking one as the shape to follow: which
-     * class a new route should use is a call this tool cannot make.
-     *
-     * @param  list<Entry>  $entries
-     */
+    /** @param  list<Entry>  $entries */
     private function attributes(array $entries): string
     {
         $counts = [];

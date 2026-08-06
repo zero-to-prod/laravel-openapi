@@ -18,10 +18,6 @@ use ZeroToProd\LaravelOpenapi\Tests\Fixtures\StringPathsGenerator;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndeclaredSecuritySchemeController;
 use ZeroToProd\LaravelOpenapi\Tests\Fixtures\UndocumentedController;
 
-/**
- * `expectsOutputToContain` matches individual writes, and the errors are
- * rendered as a single bullet list, so assert against the whole output.
- */
 function validateSchema(): array
 {
     return [Artisan::call('openapi:validate'), Artisan::output()];
@@ -53,8 +49,6 @@ it('fails when a reference does not resolve', function (): void {
 });
 
 it('fails when the generated document cannot be read', function (): void {
-    // Invalid UTF-8 in a document-level field, so the json_encode() feeding the
-    // reader throws before any specification exists to validate.
     app()->instance(SchemaGenerator::class, new SchemaGenerator(
         app(Router::class),
         ['openapi' => "\xB1\x31"],
@@ -125,9 +119,6 @@ it('survives a path item and a security entry that are the wrong type entirely',
 
     [$status, $output] = validateSchema();
 
-    // cebe has its own opinion about the nonsense and is welcome to it. What
-    // the security check must not do is treat a bare string as a scheme name
-    // and invent an error of its own about it, or fatal walking past it.
     expect($status)->toBe(1)
         ->and($output)->toContain('could not be read')
         ->and($output)->not->toContain("Mentioned security scheme 'not-a-requirement-object'");
@@ -155,8 +146,6 @@ it('fails when the declared path renames a route placeholder', function (): void
 
     [$status, $output] = validateSchema();
 
-    // Both strings, so the reader does not have to hunt for a declaration that
-    // is right there and one word off.
     expect($status)->toBe(1)
         ->and($output)->toContain('The attribute on '.ShowArticleController::class.'::__invoke')
         ->and($output)->toContain('declares [/articles/{id}]')
@@ -178,8 +167,6 @@ it('fails when the declared path is right but the method is not', function (): v
 
     [$status, $output] = validateSchema();
 
-    // Naming the declared method is the difference between this and a path
-    // mismatch: the declaration is in the right place, under the wrong verb.
     expect($status)->toBe(1)
         ->and($output)->toContain('declares [get /articles/{id}]')
         ->and($output)->toContain('but the route it annotates is [POST /articles/{id}]');
@@ -192,8 +179,6 @@ it('fails when the paths still carry the prefix the server base now adds', funct
 
     [$status, $output] = validateSchema();
 
-    // The declared path and the route read identically here, so the error has to
-    // print what the declaration resolves to or it looks like a contradiction.
     expect($status)->toBe(1)
         ->and($output)->toContain('declares [/articles/{id}], which resolves to [/articles/articles/{id}] against the server base [/articles],')
         ->and($output)->toContain('but the route it annotates is [GET /articles/{id}]');
@@ -233,8 +218,6 @@ it('accepts any configured base, not only the first', function (): void {
 
     [$status, $output] = validateSchema();
 
-    // `/openapi.json` matches the `/v1` base, `/articles/{id}` matches the root
-    // one, and neither matches both.
     expect($status)->toBe(0)->and($output)->toContain('valid OpenAPI 3.0.4 document');
 });
 
@@ -298,8 +281,6 @@ it('ignores a server entry that is not a server object rather than reading a bas
 
     [$status, $output] = validateSchema();
 
-    // cebe has its own opinion about the nonsense. What this check must not do
-    // is add an invented mismatch of its own on top of it.
     expect($status)->toBe(1)->and($output)->not->toContain('The attribute on');
 });
 

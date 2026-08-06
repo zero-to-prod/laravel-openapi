@@ -37,12 +37,6 @@ class ValidateSchemaCommand extends Command
         // @codeCoverageIgnoreEnd
 
         $document = $SchemaGenerator->document();
-
-        // The security and declared-path checks read the raw array and need
-        // nothing from cebe, so they run even when the reader gives up.
-        // Reporting everything at once is the point of this command: a document
-        // with a structural fault and a dangling scheme should cost one run to
-        // diagnose, not two.
         $declaredPaths = $this->declaredPaths($SchemaGenerator, $document);
         $errors = [...$this->securityErrors($document), ...$declaredPaths['errors']];
 
@@ -78,11 +72,6 @@ class ValidateSchemaCommand extends Command
     }
 
     /**
-     * A declared path is a string in an attribute, and nothing reconciles it
-     * with the route the attribute sits on. This does, so it can newly fail a
-     * build that passes today; `openapi.validation.declared_paths` is the way
-     * out for a document deliberately decoupled from its routes.
-     *
      * @param  array<string, mixed>  $document
      * @return array{errors: list<string>, skipped: string|null}
      */
@@ -117,15 +106,6 @@ class ValidateSchemaCommand extends Command
     }
 
     /**
-     * A security requirement names a scheme; it does not `$ref` one. So
-     * resolveReferences() walks straight past it and validate() does not
-     * cross-check it either, and a document naming a scheme nobody declared
-     * passes this command. Every request then fails at test time instead, with
-     * league's `Mentioned security scheme ... not found in the given spec`.
-     *
-     * The wording below matches league's deliberately, so a search for the
-     * message an agent is staring at finds this check too.
-     *
      * @param  array<string, mixed>  $document
      * @return list<string>
      */
@@ -152,8 +132,6 @@ class ValidateSchemaCommand extends Command
     }
 
     /**
-     * Every scheme name the document requires, paired with where it asked.
-     *
      * @param  array<string, mixed>  $document
      * @return list<array{0: string, 1: string}>
      */
@@ -171,9 +149,6 @@ class ValidateSchemaCommand extends Command
                 continue;
             }
 
-            // Matching on the operation allowlist rather than skipping known
-            // non-operations keeps `parameters`, `servers` and any `x-` key out
-            // without having to enumerate what else a Path Item may hold.
             foreach (self::operations as $method) {
                 $operation = $item[$method] ?? null;
 
@@ -199,9 +174,6 @@ class ValidateSchemaCommand extends Command
         $schemes = [];
 
         foreach ($security as $requirement) {
-            // An empty requirement object is the OpenAPI idiom for "auth is
-            // optional here". It names no scheme, so there is nothing to
-            // resolve and nothing to complain about.
             if (! is_array($requirement)) {
                 continue;
             }
